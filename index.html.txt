@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>縮毛矯正ナビAI - Expert Pro</title>
+
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        :root { --primary: #38bdf8; --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --risk: #ef4444; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: -apple-system, sans-serif; padding-bottom: 90px; }
+        .screen { display: none; padding: 15px; animation: fadeIn 0.3s; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .card { background: var(--card); border-radius: 12px; padding: 15px; margin: 10px 0; border: 1px solid #334155; }
+        h3 { margin: 0 0 10px 0; color: var(--primary); font-size: 0.9rem; letter-spacing: 1px; }
+        
+        /* 選択ボタンのスタイル */
+        .btn-group { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+        button { padding: 10px 14px; border: none; border-radius: 8px; background: #334155; color: #fff; cursor: pointer; transition: 0.2s; font-size: 0.85rem; }
+        button.active { background: var(--primary); color: var(--bg); font-weight: bold; }
+        
+        .auto-btn { background: var(--accent); color: #000; width: 100%; font-weight: bold; font-size: 1.1rem; padding: 16px; margin: 15px 0; border-radius: 12px; }
+        
+        /* カメラ・プレビュー */
+        #video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 10px; display: none; }
+        #photo-preview img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid var(--primary); }
+
+        /* リスク表示 */
+        .risk-box { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--risk); color: #fca5a5; padding: 12px; border-radius: 10px; margin: 10px 0; font-size: 0.9rem; }
+        
+        /* タブバー */
+        .tabbar { position: fixed; bottom: 0; width: 100%; display: flex; justify-content: space-around; background: var(--card); padding: 12px 0; border-top: 1px solid #334155; z-index: 100; }
+        .tab-btn { background: none; color: #94a3b8; }
+        .tab-btn.active { color: var(--primary); }
+
+        input, select { background: #0f172a; border: 1px solid #475569; color: #fff; padding: 12px; border-radius: 8px; width: calc(100% - 26px); margin-bottom: 10px; }
+        .timer-display { font-size: 2rem; font-weight: bold; text-align: center; color: #fbbf24; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+
+<body>
+
+<div id="splash" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;">
+    <h1 style="color:var(--primary); margin-bottom:0;">矯正ナビ AI</h1>
+    <p style="color:#64748b;">Loading Expert System...</p>
+</div>
+
+<div id="app">
+
+    <div id="screen-diagnosis" class="screen active">
+        <div class="card">
+            <h3>基本情報 & 薬剤選択</h3>
+            <input id="cust-name" placeholder="お客様名">
+            <select id="brand-select" onchange="state.brand = this.value">
+                <option value="milbon">ミルボン (ネオリシオ基準)</option>
+                <option value="arimino">アリミノ (クオライン基準)</option>
+                <option value="wella">ウエラ (プレジール基準)</option>
+                <option value="custom">カスタム (標準比率)</option>
+            </select>
+        </div>
+
+        <div class="card">
+            <h3>髪質・ダメージ診断</h3>
+            <div>太さ:</div>
+            <div class="btn-group">
+                <button onclick="updateState(this,'thick',2)">細い</button>
+                <button class="active" onclick="updateState(this,'thick',5)">普通</button>
+                <button onclick="updateState(this,'thick',9)">太い</button>
+            </div>
+            <div>ダメージ履歴:</div>
+            <div class="btn-group">
+                <button class="active" onclick="updateState(this,'colorDmg',0)">健康毛</button>
+                <button onclick="updateState(this,'colorDmg',3)">カラー1回</button>
+                <button onclick="updateState(this,'colorDmg',6)">ハイトーン</button>
+                <button onclick="updateState(this,'colorDmg',9)">ブリーチ</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>AI 画像キャプチャ (接写)</h3>
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+            <div id="photo-preview"></div>
+            <button id="cam-btn" onclick="toggleCamera()" style="width:100%; background:#475569;">カメラを起動</button>
+            <button id="snap-btn" onclick="takePhoto()" style="width:100%; margin-top:5px; display:none;">写真を解析保存</button>
+        </div>
+
+        <button class="auto-btn" onclick="generatePlan()">🔥 最適プランを生成</button>
+
+        <div id="plan-output"></div>
+
+        <div class="card">
+            <h3>放置タイマー</h3>
+            <div class="timer-display" id="timer-val">00:00</div>
+            <div class="btn-group" style="justify-content: center;">
+                <button onclick="startTimer(600)">10分</button>
+                <button onclick="startTimer(1200)">20分</button>
+                <button onclick="startTimer(1800)">30分</button>
+                <button style="background:var(--risk)" onclick="stopTimer()">Reset</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <button style="width:100%; background:var(--primary); color:var(--bg); font-weight:bold;" onclick="saveFinalRecord()">施術結果を保存</button>
+        </div>
+    </div>
+
+    <div id="screen-record" class="screen">
+        <div class="card">
+            <h3>カルテ検索</h3>
+            <input id="search-query" placeholder="名前で検索..." oninput="searchRecords()">
+        </div>
+        <div id="history-container"></div>
+    </div>
+
+    <div class="tabbar">
+        <button class="tab-btn active" onclick="switchTab('diagnosis', this)">施術診断</button>
+        <button class="tab-btn" onclick="switchTab('record', this)">過去カルテ</button>
+    </div>
+
+</div>
+
+<script>
+// --- 1. グローバル状態管理 ---
+let state = {
+    thick: 5,
+    colorDmg: 0,
+    brand: 'milbon',
+    capturedPhoto: null,
+    currentLevel: 'M'
+};
+
+// 薬剤メーカー別プリセット (1剤:水:油)
+const brandPresets = {
+    milbon:  { AX:[90,5,5], SH:[80,10,10], H:[70,20,10], M:[50,40,10], L:[30,60,10], B:[10,80,10] },
+    arimino: { AX:[100,0,0], SH:[85,10,5],  H:[70,20,10], M:[50,40,10], L:[25,65,10], B:[5,85,10] },
+    wella:   { AX:[85,10,5], SH:[75,15,10], H:[65,25,10], M:[55,35,10], L:[45,45,10], B:[35,55,10] },
+    custom:  { AX:[80,10,10], SH:[70,15,15], H:[60,20,20], M:[50,30,20], L:[40,40,20], B:[30,50,20] }
+};
+
+// --- 2. UI操作・診断関数 ---
+function updateState(el, key, val) {
+    el.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    state[key] = val;
+}
+
+function generatePlan() {
+    const { thick, colorDmg, brand } = state;
+    const score = (thick + 10) - colorDmg; // 簡易ロジック
+
+    let lv = 'B';
+    if(score >= 18) lv = 'AX';
+    else if(score >= 15) lv = 'SH';
+    else if(score >= 12) lv = 'H';
+    else if(score >= 9)  lv = 'M';
+    else if(score >= 6)  lv = 'L';
+    state.currentLevel = lv;
+
+    const formula = brandPresets[brand][lv];
+    const total = 120;
+    const m = Math.round(total * formula[0]/100);
+    const w = Math.round(total * formula[1]/100);
+    const o = Math.round(total * formula[2]/100);
+
+    let risks = [];
+    if(colorDmg >= 6) risks.push("⚠️ ハイダメージ：前処理剤を併用してください");
+    if(lv === 'L' || lv === 'B') risks.push("⚠️ 軟化が速い可能性：5分おきにチェック");
+
+    document.getElementById('plan-output').innerHTML = `
+        <div class="card" style="border-left:5px solid var(--primary)">
+            <h3>推奨プラン: ${lv}ランク</h3>
+            <div style="display:flex; justify-content:space-between; text-align:center;">
+                <div>1剤<br><strong>${m}g</strong></div>
+                <div>水/減力<br><strong>${w}g</strong></div>
+                <div>保護剤<br><strong>${o}g</strong></div>
+            </div>
+            ${risks.length ? `<div class="risk-box">${risks.join('<br>')}</div>` : ''}
+        </div>
+    `;
+}
+
+// --- 3. カメラ機能 ---
+let stream = null;
+async function toggleCamera() {
+    const video = document.getElementById('video');
+    const btn = document.getElementById('cam-btn');
+    const snapBtn = document.getElementById('snap-btn');
+
+    if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        video.style.display = 'block';
+        btn.innerText = "カメラを止める";
+        snapBtn.style.display = 'block';
+    } else {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+        video.style.display = 'none';
+        btn.innerText = "カメラを起動";
+        snapBtn.style.display = 'none';
+    }
+}
+
+function takePhoto() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    state.capturedPhoto = canvas.toDataURL('image/png');
+    document.getElementById('photo-preview').innerHTML = `<img src="${state.capturedPhoto}">`;
+    alert("画像を解析用データとして一時保存しました");
+}
+
+// --- 4. タイマー & ユーティリティ ---
+let timer;
+function startTimer(sec) {
+    clearInterval(timer);
+    let s = sec;
+    timer = setInterval(() => {
+        s--;
+        const m = Math.floor(s/60);
+        const ss = s%60;
+        document.getElementById('timer-val').innerText = `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+        if(s<=0) { clearInterval(timer); alert("タイムアップです！"); }
+    }, 1000);
+}
+function stopTimer() { clearInterval(timer); document.getElementById('timer-val').innerText = "00:00"; }
+
+function switchTab(screenId, btn) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + screenId).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+// --- 5. 保存 & 検索 ---
+function saveFinalRecord() {
+    const name = document.getElementById('cust-name').value;
+    if(!name) return alert("客名を入力してください");
+    
+    const records = JSON.parse(localStorage.getItem('records_ai') || '[]');
+    records.push({
+        name,
+        date: new Date().toLocaleDateString(),
+        level: state.currentLevel,
+        brand: state.brand,
+        img: state.capturedPhoto
+    });
+    localStorage.setItem('records_ai', JSON.stringify(records));
+    alert("カルテを保存しました");
+}
+
+function searchRecords() {
+    const q = document.getElementById('search-query').value;
+    const records = JSON.parse(localStorage.getItem('records_ai') || '[]');
+    const html = records.filter(r => r.name.includes(q)).reverse().map(r => `
+        <div class="card">
+            <strong>${r.date} / ${r.name}</strong><br>
+            ランク: ${r.level} (${r.brand})
+            ${r.img ? `<img src="${r.img}" style="width:100%; border-radius:5px; margin-top:5px;">` : ''}
+        </div>
+    `).join('');
+    document.getElementById('history-container').innerHTML = html || "履歴がありません";
+}
+
+// 起動時
+setTimeout(() => document.getElementById('splash').style.display='none', 1200);
+</script>
+
+</body>
+</html>
