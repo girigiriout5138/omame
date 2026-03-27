@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>縮毛矯正ナビAI - Pro Elite</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #111111;
+            --btn-default: #2a2a2e;
+            --btn-active: #4f5b7d;
+            --text-color: #ffffff;
+            --accent: #38bdf8;
+            --pink-accent: #ff69b4;
+            --border: #222222;
+        }
+
+        body {
+            margin: 0; background-color: var(--bg-color);
+            color: var(--text-color); font-family: -apple-system, sans-serif;
+            padding: 10px; padding-bottom: 80px; -webkit-user-select: none;
+        }
+
+        .card {
+            background: var(--card-bg); border-radius: 15px;
+            margin-bottom: 15px; padding: 15px; border: 1px solid var(--border);
+        }
+
+        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid var(--accent); padding-left: 10px; }
+
+        /* 入力レイアウト */
+        .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px; }
+        .val-badge { color: var(--accent); font-weight: bold; }
+
+        /* 数字ボタン（5列で折り返し） */
+        .btn-group { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 15px; }
+        .num-btn {
+            flex: 0 0 calc(20% - 4px); padding: 12px 0; background: var(--btn-default);
+            border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;
+        }
+        .num-btn.active { background: var(--btn-active); border: 1px solid var(--accent); }
+
+        /* 結果テーブル */
+        .res-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 5px; }
+        .res-table td { padding: 12px 5px; border-bottom: 1px solid #222; }
+        .res-label { color: #888; width: 45%; }
+        .res-val { text-align: right; font-weight: bold; }
+        .badge { background: var(--pink-accent); color: white; padding: 2px 8px; border-radius: 5px; font-size: 12px; margin-left: 5px; }
+
+        .calc-btn {
+            width: 100%; padding: 18px; background: var(--btn-active);
+            border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 18px; margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div style="padding: 10px; font-weight: bold; font-size: 18px; color: var(--accent);">縮毛矯正ナビAI <span style="font-size: 12px; color: #555;">Pro Elite</span></div>
+
+<div class="card">
+    <div class="section-title">本来の毛髪強度</div>
+    
+    <div class="label-row">髪の太さ (1〜10) <span class="val-badge" id="v-thick">5</span></div>
+    <div class="btn-group">
+        <script>for(let i=1; i<=10; i++) document.write(`<button class="num-btn ${i==5?'active':''}" onclick="upd('thick',${i},this)">${i}</button>`)</script>
+    </div>
+
+    <div class="label-row">弾力 (0〜5) <span class="val-badge" id="v-elastic">3</span></div>
+    <div class="btn-group">
+        <script>for(let i=0; i<=5; i++) document.write(`<button class="num-btn ${i==3?'active':''}" onclick="upd('elastic',${i},this)">${i}</button>`)</script>
+    </div>
+
+    <div class="label-row">疎水性 (0〜5) <span class="val-badge" id="v-porous">3</span></div>
+    <div class="btn-group">
+        <script>for(let i=0; i<=5; i++) document.write(`<button class="num-btn ${i==3?'active':''}" onclick="upd('porous',${i},this)">${i}</button>`)</script>
+    </div>
+</div>
+
+<div class="card">
+    <div class="section-title">根元ダメージ状況</div>
+    
+    <div class="label-row">カラーのダメージ (0〜20) <span class="val-badge" id="v-rColor">0</span></div>
+    <div class="btn-group">
+        <script>for(let i=0; i<=20; i++) document.write(`<button class="num-btn ${i==0?'active':''}" onclick="upd('rColor',${i},this)">${i}</button>`)</script>
+    </div>
+
+    <div class="label-row">矯正のダメージ (0〜20) <span class="val-badge" id="v-rPerm">0</span></div>
+    <div class="btn-group">
+        <script>for(let i=0; i<=20; i++) document.write(`<button class="num-btn ${i==0?'active':''}" onclick="upd('rPerm',${i},this)">${i}</button>`)</script>
+    </div>
+</div>
+
+<button class="calc-btn" onclick="calculate()">診断結果を表示</button>
+
+<div id="result-area" style="display:none; margin-top: 20px;">
+    <div class="card">
+        <div class="section-title">AI 診断レポート</div>
+        <table class="res-table">
+            <tr>
+                <td class="res-label">本来の毛髪強度</td>
+                <td class="res-val" id="res-base-text">太5、弾3、疎3 <span class="val-badge" style="margin-left:10px;" id="res-base-num">11</span></td>
+            </tr>
+            <tr>
+                <td class="res-label">根元の毛髪強度</td>
+                <td class="res-val" id="res-root-text">カ0、矯0 <span class="val-badge" style="margin-left:10px;" id="res-root-num">11</span></td>
+            </tr>
+            <tr>
+                <td class="res-label">根元の推奨薬剤</td>
+                <td class="res-val"><span id="res-drug">AX7 : BX3</span> <span class="badge" id="res-alkali">H10%</span></td>
+            </tr>
+            <tr>
+                <td class="res-label">アイロンの目安</td>
+                <td class="res-val" id="res-iron">0.50秒〜1.00秒</td>
+            </tr>
+            <tr>
+                <td class="res-label">スライスの目安</td>
+                <td class="res-val" id="res-slice">7mm</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div style="text-align: center; color: #555; font-size: 12px; padding: 10px;">
+        ※この診断は目安です。毛髪の状態を直接確認し調整してください。
+    </div>
+</div>
+
+<script>
+    // 状態管理
+    let state = { thick:5, elastic:3, porous:3, rColor:0, rPerm:0 };
+
+    function upd(key, val, el) {
+        el.parentNode.querySelectorAll('.num-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        state[key] = val;
+        document.getElementById('v-' + key).innerText = val;
+    }
+
+    function calculate() {
+        const baseScore = state.thick + state.elastic + state.porous;
+        const rootScore = baseScore - (state.rColor + state.rPerm);
+
+        // テキスト更新
+        document.getElementById('res-base-text').innerHTML = `太${state.thick}、弾${state.elastic}、疎${state.porous} <span class="val-badge" style="margin-left:10px;">${baseScore}</span>`;
+        document.getElementById('res-root-text').innerHTML = `カ${state.rColor}、矯${state.rPerm} <span class="val-badge" style="margin-left:10px;">${rootScore}</span>`;
+
+        // ロジック分岐
+        let drug, alkali, iron, slice;
+        if (rootScore >= 11) {
+            drug = "AX7 : BX3"; alkali = "H10%"; iron = "0.50秒〜1.00秒"; slice = "7mm";
+        } else if (rootScore >= 8) {
+            drug = "AX5 : BX5"; alkali = "H5%"; iron = "0.80秒〜1.20秒"; slice = "5mm";
+        } else if (rootScore >= 5) {
+            drug = "AX3 : BX7"; alkali = "M3%"; iron = "1.00秒〜1.50秒"; slice = "4mm";
+        } else {
+            drug = "BX単体"; alkali = "L1%"; iron = "1.50秒以上 (スルー)"; slice = "3mm";
+        }
+
+        // 表示反映
+        document.getElementById('res-drug').innerText = drug;
+        document.getElementById('res-alkali').innerText = alkali;
+        document.getElementById('res-iron').innerText = iron;
+        document.getElementById('res-slice').innerText = slice;
+
+        document.getElementById('result-area').style.display = 'block';
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+</script>
+</body>
+</html>
