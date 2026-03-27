@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>縮毛矯正ナビAI - Final Pro</title>
+    <style>
+        :root {
+            --bg: #000; --card: #1a1a1a; --accent: #38bdf8; --btn: #333; --active: #4a5568;
+            --pink: #f687b3; --text: #fff; --sub-text: #a0aec0;
+        }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; padding: 10px; padding-bottom: 60px; }
+        .card { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #222; }
+        .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; color: #fff; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px; }
+        .info-icon { background: var(--accent); color: #000; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; justify-content: center; align-items: center; font-size: 10px; margin-left: 5px; }
+        .val-badge { color: var(--accent); font-weight: bold; }
+
+        .btn-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 15px; }
+        .num-btn { background: var(--btn); border: none; border-radius: 8px; color: #fff; padding: 10px 0; font-weight: bold; font-size: 13px; }
+        .num-btn.active { background: var(--active); border: 1px solid var(--accent); }
+
+        .switch-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 14px; }
+        .size-group { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 15px; }
+        .size-btn { background: var(--btn); border: none; border-radius: 15px; color: #fff; padding: 6px 15px; font-size: 12px; }
+        .size-btn.active { background: var(--active); color: var(--accent); border: 1px solid var(--accent); }
+
+        .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .calc-btn { background: var(--active); color: white; padding: 16px; border-radius: 10px; border: none; font-weight: bold; font-size: 16px; }
+        .reset-btn { background: #333; color: #fff; padding: 16px; border-radius: 10px; border: none; }
+
+        .res-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        .res-table td { padding: 12px 0; border-bottom: 1px solid #333; }
+        .badge-pink { background: var(--pink); color: #fff; padding: 2px 8px; border-radius: 5px; font-size: 11px; margin-left: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="section-title">本来の毛髪強度</div>
+    <div class="label-row">髪の太さ (1〜10) <span class="val-badge" id="v-thick">5</span></div>
+    <div class="btn-grid"><script>for(let i=1; i<=10; i++) document.write(`<button class="num-btn ${i==5?'active':''}" onclick="upd('thick',${i},this)">${i}</button>`)</script></div>
+    <div class="label-row">弾力 (0〜5) <span class="val-badge" id="v-elastic">3</span></div>
+    <div class="btn-grid"><script>for(let i=0; i<=5; i++) document.write(`<button class="num-btn ${i==3?'active':''}" onclick="upd('elastic',${i},this)">${i}</button>`)</script></div>
+    <div class="label-row">毛量</div>
+    <div class="size-group">
+        <button class="size-btn" onclick="upd('vol','少ない',this)">少ない</button>
+        <button class="size-btn active" onclick="upd('vol','普通',this)">普通</button>
+        <button class="size-btn" onclick="upd('vol','多い',this)">多い</button>
+    </div>
+    <div class="switch-row"><span>黒人毛 (+10)</span><input type="checkbox" id="isBlack"></div>
+</div>
+
+<div class="card">
+    <div class="section-title">根元 <span style="font-size:10px; font-weight:normal;">リタッチのみ <input type="checkbox" id="isRetouch" onchange="toggleTip()"></span></div>
+    <div class="label-row">カラーダメージ (0〜20) <span class="val-badge" id="v-rDmg">0</span></div>
+    <div class="btn-grid"><script>for(let i=0; i<=20; i++) document.write(`<button class="num-btn ${i==0?'active':''}" onclick="upd('rDmg',${i},this)">${i}</button>`)</script></div>
+    <div class="label-row">不安要素 (0〜10) <span class="val-badge" id="v-rUnrest">0</span></div>
+    <div class="btn-grid"><script>for(let i=0; i<=10; i++) document.write(`<button class="num-btn ${i==0?'active':''}" onclick="upd('rUnrest',${i},this)">${i}</button>`)</script></div>
+</div>
+
+<div id="tip-card" class="card">
+    <div class="section-title">毛先</div>
+    <div class="label-row">カラーダメージ (0〜20) <span class="val-badge" id="v-tDmg">0</span></div>
+    <div class="btn-grid"><script>for(let i=0; i<=20; i++) document.write(`<button class="num-btn ${i==0?'active':''}" onclick="upd('tDmg',${i},this)">${i}</button>`)</script></div>
+    <div class="label-row">不安要素 (0〜10) <span class="val-badge" id="v-tUnrest">0</span></div>
+    <div class="btn-grid"><script>for(let i=0; i<=10; i++) document.write(`<button class="num-btn ${i==0?'active':''}" onclick="upd('tUnrest',${i},this)">${i}</button>`)</script></div>
+</div>
+
+<div class="action-row">
+    <button class="calc-btn" onclick="runCalc()">計算する</button>
+    <button class="reset-btn" onclick="location.reload()">リセット</button>
+</div>
+
+<div id="res-area" style="display:none; margin-top:20px;">
+    <div class="card">
+        <div class="section-title">診断結果</div>
+        <table class="res-table" id="res-root-table">
+            <tr><td colspan="2" style="color:var(--accent); font-weight:bold;">【根元】</td></tr>
+            <tr><td class="res-label">推奨薬剤</td><td style="text-align:right"><span id="out-drug-r">AX7:BX3</span><span class="badge-pink" id="out-h-r">H10%</span></td></tr>
+            <tr><td class="res-label">アイロン/スライス</td><td style="text-align:right" id="out-info-r">0.5s / 7mm</td></tr>
+        </table>
+        <table class="res-table" id="res-tip-table" style="margin-top:15px;">
+            <tr><td colspan="2" style="color:var(--pink); font-weight:bold;">【毛先】</td></tr>
+            <tr><td class="res-label">推奨薬剤</td><td style="text-align:right"><span id="out-drug-t">AX3:BX7</span><span class="badge-pink" id="out-h-t">H3%</span></td></tr>
+            <tr><td class="res-label">アイロン/スライス</td><td style="text-align:right" id="out-info-t">1.0s / 5mm</td></tr>
+        </table>
+    </div>
+</div>
+
+<script>
+    let state = { thick:5, elastic:3, porous:3, rDmg:0, rUnrest:0, tDmg:0, tUnrest:0 };
+
+    function upd(key, val, el) {
+        el.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        state[key] = val;
+        document.getElementById('v-' + key).innerText = val;
+    }
+
+    function toggleTip() {
+        document.getElementById('tip-card').style.opacity = document.getElementById('isRetouch').checked ? "0.3" : "1";
+    }
+
+    function getResult(score) {
+        if (score >= 15) return { d:"AX9:BX1", h:"H12%", i:"0.4s / 8mm" };
+        if (score >= 11) return { d:"AX7:BX3", h:"H10%", i:"0.5s / 7mm" };
+        if (score >= 7)  return { d:"AX5:BX5", h:"H5%",  i:"0.8s / 5mm" };
+        return { d:"AX2:BX8", h:"L3%", i:"1.2s / 3mm" };
+    }
+
+    function runCalc() {
+        let base = state.thick + state.elastic + state.porous;
+        if(document.getElementById('isBlack').checked) base += 10;
+        
+        // 根元の計算
+        let rRes = getResult(base - state.rDmg - state.rUnrest);
+        document.getElementById('out-drug-r').innerText = rRes.d;
+        document.getElementById('out-h-r').innerText = rRes.h;
+        document.getElementById('out-info-r').innerText = rRes.i;
+
+        // 毛先の計算
+        if(!document.getElementById('isRetouch').checked) {
+            let tRes = getResult(base - state.tDmg - state.tUnrest);
+            document.getElementById('out-drug-t').innerText = tRes.d;
+            document.getElementById('out-h-t').innerText = tRes.h;
+            document.getElementById('out-info-t').innerText = tRes.i;
+            document.getElementById('res-tip-table').style.display = "table";
+        } else {
+            document.getElementById('res-tip-table').style.display = "none";
+        }
+
+        document.getElementById('res-area').style.display = 'block';
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+</script>
+</body>
+</html>
