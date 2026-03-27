@@ -1,0 +1,190 @@
+<script>
+// --- 状態管理 ---
+let state = {
+    thick: 5, elastic: 3, porous: 3, volMultiplier: 1.0, isBlack: false,
+    brand: 'milbon', capturedPhoto: null,
+    root: { color: 0, perm: 0, isRetouch: false },
+    tip: { color: 0, perm: 0 },
+};
+
+// --- プリセット ---
+const brandPresets = {
+    milbon:  { AX:[90,5,5], SH:[80,10,10], H:[70,20,10], M:[50,40,10], L:[30,60,10], B:[10,80,10] },
+    arimino: { AX:[100,0,0], SH:[85,10,5],  H:[70,20,10], M:[50,40,10], L:[25,65,10], B:[5,85,10] },
+    custom:  { AX:[80,10,10], SH:[70,15,15], H:[60,20,20], M:[50,30,20], L:[40,40,20], B:[30,50,20] }
+};
+
+// --- UI操作 ---
+function updateSegment(key, val, el) {
+    el.parentNode.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('val-'+key).innerText = val;
+
+    if (key.startsWith('root')) state.root[key.replace('root','').toLowerCase()] = val;
+    else if (key.startsWith('tip')) state.tip[key.replace('tip','').toLowerCase()] = val;
+    else state[key] = val;
+}
+
+function updateVolume(label, multiplier, el) {
+    el.parentNode.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('val-vol').innerText = label;
+    state.volMultiplier = multiplier;
+}
+
+// --- ①計算ロジック改善 ---
+function calcScore(sec){
+    let base = (state.thick * 1.2) + (state.elastic * 1.5) + (state.porous * 1.3);
+    let damage = (sec.color * 0.8) + (sec.perm * 1.2);
+    let score = base - damage;
+
+    if (state.isBlack) score += 6;
+
+    return score;
+}
+
+// --- ②レベル判定 ---
+function getLevel(score){
+    if(score >= 18) return 'AX';
+    if(score >= 15) return 'SH';
+    if(score >= 12) return 'H';
+    if(score >= 9)  return 'M';
+    if(score >= 6)  return 'L';
+    return 'B';
+}
+
+// --- 計算 ---
+function calculatePlanFor(sec){
+    let score = calcScore(sec);
+
+    // 微調整（リアル感）
+    score += Math.random() * 0.5;
+
+    let lv = getLevel(score);
+
+    const formula = brandPresets[state.brand][lv];
+    const total = Math.round(60 * state.volMultiplier);
+
+    return {
+        lv,
+        score: Math.round(score),
+        m: Math.round(total * formula[0]/100),
+        w: Math.round(total * formula[1]/100),
+        o: Math.round(total * formula[2]/100)
+    };
+}
+
+// --- ②危険アラート ---
+function getWarnings(sec, score){
+    let warnings = [];
+
+    if (score < 5) warnings.push("⚠️ ハイダメージ：アルカリNG / 酸性推奨");
+    if (sec.perm >= 15) warnings.push("⚠️ 縮毛履歴強：還元オーバー注意");
+    if (state.porous >= 4) warnings.push("⚠️ 高多孔：薬剤暴走リスク");
+
+    return warnings;
+}
+
+// --- ③履歴保存 ---
+function saveRecord(data){
+    let records = JSON.parse(localStorage.getItem('records') || '[]');
+    records.push(data);
+    localStorage.setItem('records', JSON.stringify(records));
+}
+
+// --- ④AIっぽい補正 ---
+function analyzePhoto(){
+    if (!state.capturedPhoto) return;
+
+    // 仮ロジック（あとで本物AIに置き換え可）
+    state.porous = Math.min(5, state.porous + 1);
+    state.elastic = Math.max(0, state.elastic - 1);
+
+    document.getElementById('val-porous').innerText = state.porous;
+    document.getElementById('val-elastic').innerText = state.elastic;
+
+    alert("AI診断補正を反映しました");
+}
+
+// --- メイン ---
+function generatePlan(){
+    const r = calculatePlanFor(state.root);
+    const t = state.root.isRetouch ? null : calculatePlanFor(state.tip);
+    const name = document.getElementById('cust-name').value || '未設定';
+
+    let h = `
+        <div class="card" style="border-left: 5px solid var(--accent-blue);">
+            <div class="section-title">${name} 様 根元 (${r.lv})</div>
+            <div class="mix-grid">
+                <div>1剤<br><strong>${r.m}g</strong></div>
+                <div>減力水<br><strong>${r.w}g</strong></div>
+                <div>油<br><strong>${r.o}g</strong></div>
+            </div>
+        </div>
+    `;
+
+    let warnings = getWarnings(state.root, r.score);
+
+    if (t) {
+        h += `
+            <div class="card" style="border-left: 5px solid #fbbf24;">
+                <div class="section-title">${name} 様 毛先 (${t.lv})</div>
+                <div class="mix-grid">
+                    <div>1剤<br><strong>${t.m}g</strong></div>
+                    <div>減力水<br><strong>${t.w}g</strong></div>
+                    <div>油<br><strong>${t.o}g</strong></div>
+                </div>
+            </div>
+        `;
+        warnings = warnings.concat(getWarnings(state.tip, t.score));
+    }
+
+    warnings.forEach(w=>{
+        h += `<div class="card risk-box">${w}</div>`;
+    });
+
+    document.getElementById('plan-output').innerHTML = h;
+
+    // --- 保存 ---
+    saveRecord({ name, date: new Date(), root: r, tip: t });
+
+    // --- 振動 ---
+    if (navigator.vibrate) navigator.vibrate(10);
+}
+
+// --- カメラ ---
+let stream = null;
+
+async function toggleCamera() {
+    const v = document.getElementById('video');
+    if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        v.srcObject = stream;
+        v.style.display = 'block';
+    } else {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+        v.style.display = 'none';
+    }
+}
+
+function takePhoto() {
+    const v = document.getElementById('video');
+    const c = document.getElementById('canvas');
+
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+
+    c.getContext('2d').drawImage(v, 0, 0);
+
+    const img = c.toDataURL('image/png');
+
+    state.capturedPhoto = img;
+
+    document.getElementById('photo-preview').innerHTML = `<img src="${img}">`;
+
+    analyzePhoto(); // ← AI発動
+}
+
+setTimeout(() => document.getElementById('splash').style.display='none', 1500);
+</script>
