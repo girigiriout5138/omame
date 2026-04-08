@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>薬剤選定ナビ</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="薬剤選定ナビ">
+<meta name="theme-color" content="#0d0d0d">
+<link id="pwa-icon" rel="apple-touch-icon" href="">
+<link id="pwa-manifest" rel="manifest" href="">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --gold: #c9a96e;
+    --gold-light: #e8c99a;
+    --gold-dim: #7a6040;
+    --text: #f0ece4;
+    --text-sub: #8a8278;
+    --text-muted: #8c837a;
+    --accent: #c9a96e;
+    --danger: #c96e6e;
+    --ok: #6ec98a;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(160deg, #1a1510 0%, #0d0d0d 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 20px 16px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-logo { font-family:'DM Serif Display',serif; font-size:11px; letter-spacing:.3em; color:var(--gold-dim); text-transform:uppercase; margin-bottom:4px; }
+  .header-title { font-size:18px; font-weight:900; color:var(--text); letter-spacing:.05em; }
+  .header-title span { color:var(--gold); }
+  .progress-bar-wrap { margin-top:12px; height:2px; background:var(--border); border-radius:2px; overflow:hidden; }
+  .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--gold-dim),var(--gold)); border-radius:2px; transition:width .4s ease; }
+  .progress-label { font-size:11px; color:var(--text-muted); margin-top:6px; letter-spacing:.05em; }
+
+  /* MAIN */
+  main { padding:0 16px; max-width:480px; margin:0 auto; }
+
+  /* SECTION */
+  .section { display:none; animation:fadeUp .35s ease; }
+  .section.active { display:block; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ログイン失敗時の揺れアニメーション */
+  .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+  @keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+  }
+
+  .section-label { font-size:10px; letter-spacing:.3em; color:var(--gold-dim); text-transform:uppercase; margin:24px 0 8px; font-family:'DM Serif Display',serif; }
+  .section-title { font-size:17px; font-weight:700; color:var(--text); margin-bottom:4px; line-height:1.4; }
+  .section-sub { font-size:13px; color:var(--text-sub); margin-bottom:20px; line-height:1.6; }
+
+  /* CHOICE */
+  .choice-grid { display:flex; flex-direction:column; gap:10px; margin-bottom:28px; }
+  .choice-grid.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .choice-btn {
+    background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius);
+    padding:14px 16px; color:var(--text); font-family:inherit; font-size:14px; font-weight:500;
+    cursor:pointer; text-align:left; transition:all .18s ease; line-height:1.4; position:relative; overflow:hidden;
+  }
+  .choice-btn::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(201,169,110,.06) 0%,transparent 60%); opacity:0; transition:opacity .18s; }
+  .choice-btn:hover { border-color:var(--gold-dim); color:var(--gold-light); }
+  .choice-btn:hover::before { opacity:1; }
+  .choice-btn.selected { border-color:var(--gold); background:linear-gradient(135deg,rgba(201,169,110,.12),rgba(201,169,110,.04)); color:var(--gold-light); }
+  .cb-icon { font-size:18px; margin-bottom:4px; display:block; }
+  .cb-label { font-weight:700; font-size:14px; }
+  .cb-desc { font-size:12px; color:var(--text-sub); margin-top:3px; line-height:1.4; }
+  .choice-btn.selected .cb-desc { color:var(--gold-dim); }
+
+  /* NAV BUTTONS */
+  .nav-row { display:flex; gap:10px; margin-top:8px; margin-bottom:20px; }
+  .btn-back { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:13px 20px; color:var(--text-sub); font-family:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all .18s; }
+  .btn-back:hover { border-color:var(--text-muted); color:var(--text); }
+  .btn-next { flex:1; background:linear-gradient(135deg,#a07840,var(--gold)); border:none; border-radius:var(--radius); padding:14px; color:#0d0d0d; font-family:inherit; font-size:15px; font-weight:900; cursor:pointer; letter-spacing:.05em; transition:opacity .18s,transform .12s; box-shadow:0 4px 16px rgba(201,169,110,.25); }
+  .btn-next:hover { opacity:.9; transform:translateY(-1px); }
+  .btn-next:active { transform:translateY(0); }
+  .btn-next:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+
+  /* ── 部位別ダメージ入力 ── */
+  .zone-grid { display:flex; flex-direction:column; gap:12px; margin-bottom:28px; }
+  .zone-row {
+    background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:14px 16px;
+  }
+  .zone-row-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .zone-name { font-size:14px; font-weight:700; }
+  .zone-val-badge {
+    background:rgba(201,169,110,.12); border:1px solid rgba(201,169,110,.25);
+    color:var(--gold); font-size:12px; font-weight:700; border-radius:6px; padding:2px 10px;
+    min-width:48px; text-align:center;
+  }
+  .zone-slider-wrap { display:flex; align-items:center; gap:10px; }
+  .zone-slider { -webkit-appearance:none; flex:1; height:4px; background:var(--border); border-radius:4px; outline:none; }
+  .zone-slider::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:var(--gold); cursor:pointer; box-shadow:0 0 8px rgba(201,169,110,.4); }
+  .zone-track-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-top:5px; }
+  .zone-desc { font-size:12px; color:var(--text-sub); margin-top:4px; }
+
+  /* RESULT */
+  .result-hero {
+    margin-top:24px; background:linear-gradient(160deg,#1e1a14,#161410);
+    border:1px solid var(--gold-dim); border-radius:16px; padding:24px 20px 20px;
+    margin-bottom:20px; position:relative; overflow:hidden;
+  }
+  .result-hero::before { content:''; position:absolute; top:-40px; right:-40px; width:140px; height:140px; background:radial-gradient(circle,rgba(201,169,110,.12),transparent 70%); border-radius:50%; }
+  .result-badge { font-size:10px; letter-spacing:.3em; color:var(--gold-dim); font-family:'DM Serif Display',serif; text-transform:uppercase; margin-bottom:10px; }
+  .result-main-product { font-size:24px; font-weight:900; color:var(--gold-light); letter-spacing:.02em; margin-bottom:6px; }
+  .result-main-desc { font-size:13px; color:var(--text-sub); line-height:1.6; }
+
+  /* 部位別レシピカード */
+  .recipe-card {
+    background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius);
+    padding:0; margin-bottom:12px; overflow:hidden;
+  }
+  .recipe-card-head {
+    background:linear-gradient(135deg,rgba(201,169,110,.1),rgba(201,169,110,.03));
+    border-bottom:1px solid var(--border); padding:12px 16px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .recipe-card-icon { font-size:16px; }
+  .recipe-card-title { font-size:12px; letter-spacing:.2em; color:var(--gold); text-transform:uppercase; font-weight:700; }
+  .recipe-rows { padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+
+  .recipe-zone-row { display:flex; flex-direction:column; gap:4px; }
+  .recipe-zone-label { font-size:11px; color:var(--text-muted); letter-spacing:.1em; }
+  .recipe-zone-body { display:flex; align-items:center; gap:8px; }
+  .recipe-product { font-size:14px; font-weight:700; color:var(--text); flex:1; }
+  .recipe-num-badge {
+    background:linear-gradient(135deg,var(--gold-dim),var(--gold));
+    color:#0d0d0d; font-size:13px; font-weight:900;
+    border-radius:8px; padding:3px 12px; min-width:44px; text-align:center;
+  }
+  .recipe-num-badge.low {
+    background:linear-gradient(135deg,#2a3a2a,#3a5a3a);
+    color:#6ec98a;
+  }
+  .recipe-num-badge.zero {
+    background:rgba(201,110,110,.15); border:1px solid rgba(201,110,110,.3);
+    color:#e8a0a0; font-size:11px;
+  }
+  .scale-val-badge {
+    display:flex; flex-direction:column; align-items:center;
+    background:linear-gradient(135deg,rgba(201,169,110,.15),rgba(201,169,110,.05));
+    border:1.5px solid var(--gold-dim);
+    border-radius:8px; padding:4px 10px;
+    flex-shrink:0; line-height:1;
+    min-width:52px; text-align:center;
+  }
+  .scale-val-badge span {
+    font-size:9px; font-weight:600; color:var(--gold-dim);
+    letter-spacing:.1em; text-transform:uppercase; margin-bottom:2px;
+  }
+  .scale-val-badge .scale-num {
+    font-size:22px; font-weight:900; color:var(--gold-light);
+    letter-spacing:-.01em; line-height:1;
+  }
+  .recipe-zone-divider { border:none; border-top:1px solid var(--border); margin:2px 0; }
+
+  /* 放置時間バッジ */
+  .time-badge-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+  .time-badge {
+    background:rgba(201,169,110,.08); border:1px solid rgba(201,169,110,.2);
+    color:var(--gold); font-size:12px; font-weight:700; border-radius:6px; padding:4px 10px;
+    display:flex; align-items:center; gap:4px;
+  }
+  .time-badge-label { color:var(--text-muted); font-weight:400; font-size:11px; }
+
+  /* 2回塗り */
+  .double-app-card {
+    background:rgba(110,201,138,.05); border:1px solid rgba(110,201,138,.2);
+    border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:12px;
+  }
+  .double-app-title { font-size:12px; font-weight:700; color:#6ec98a; margin-bottom:6px; }
+  .double-app-text { font-size:12px; color:var(--text-sub); line-height:1.6; }
+
+  /* サポートアイテム */
+  .support-section { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+  .support-section-title { font-size:12px; letter-spacing:.2em; color:var(--gold-dim); text-transform:uppercase; margin-bottom:12px; }
+  .support-item { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+  .support-item:last-child { border-bottom:none; padding-bottom:0; }
+  .support-dot { width:8px; height:8px; border-radius:50%; background:var(--gold); margin-top:5px; flex-shrink:0; }
+  .support-item-name { font-size:14px; font-weight:700; margin-bottom:2px; }
+  .support-item-desc { font-size:12px; color:var(--text-sub); line-height:1.5; }
+
+  /* フロー */
+  .flow-card { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+  .flow-card-title { font-size:12px; letter-spacing:.2em; color:var(--gold-dim); text-transform:uppercase; margin-bottom:14px; }
+  .flow-step { display:flex; gap:12px; margin-bottom:12px; }
+  .flow-step:last-child { margin-bottom:0; }
+  .flow-num { width:24px; height:24px; border-radius:50%; background:linear-gradient(135deg,var(--gold-dim),var(--gold)); color:#0d0d0d; font-size:11px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .flow-text { font-size:13px; line-height:1.6; color:var(--text); }
+  .flow-sub { font-size:12px; color:var(--text-sub); margin-top:2px; }
+
+  /* CAUTION */
+  .caution-box { background:rgba(201,110,110,.08); border:1px solid rgba(201,110,110,.25); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:12px; font-size:12px; color:#e8a0a0; line-height:1.6; }
+  .info-box { background:rgba(201,169,110,.05); border:1px solid rgba(201,169,110,.2); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:12px; font-size:12px; color:var(--text-sub); line-height:1.6; }
+
+  /* RESTART */
+  .btn-restart { display:block; width:100%; background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:14px; color:var(--text-sub); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; text-align:center; transition:all .18s; margin-top:8px; letter-spacing:.05em; }
+  .btn-restart:hover { border-color:var(--gold-dim); color:var(--text); }
+
+  .tag { display:inline-block; background:rgba(201,169,110,.12); border:1px solid rgba(201,169,110,.25); color:var(--gold); font-size:11px; font-weight:700; border-radius:4px; padding:2px 7px; margin-right:4px; margin-bottom:4px; letter-spacing:.05em; }
+
+  /* スケール凡例（非使用・削除） */
+
+  /* ── ボタン式ダメージ選択 ── */
+  .zone-name-row {
+    font-size:14px; font-weight:700; color:var(--text);
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .zone-sel-label {
+    font-size:11px; font-weight:500; color:var(--text-muted);
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:6px; padding:2px 8px;
+  }
+  .zone-sel-label.selected { color:var(--gold); border-color:var(--gold-dim); background:rgba(201,169,110,.08); }
+  .dmg-btn-grid {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:7px;
+  }
+  .dmg-btn {
+    background:var(--surface2); border:1.5px solid var(--border);
+    border-radius:10px; padding:10px 6px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    transition:all .15s ease; font-family:inherit;
+  }
+  .dmg-btn:hover { border-color:var(--gold-dim); }
+  .dmg-btn.selected {
+    border-color:var(--gold);
+    background:linear-gradient(135deg,rgba(201,169,110,.15),rgba(201,169,110,.05));
+  }
+  .dmg-num {
+    font-size:13px; font-weight:900; color:var(--text);
+    line-height:1;
+  }
+  .dmg-btn.selected .dmg-num { color:var(--gold-light); }
+  .dmg-txt {
+    font-size:10px; color:var(--text-muted); line-height:1; text-align:center;
+  }
+  .dmg-btn.selected .dmg-txt { color:var(--gold-dim); }
+
+  /* ── ログイン画面 ── */
+  #screen-login {
+    position:fixed; inset:0; background:var(--bg); z-index:2000;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:32px 24px; animation:fadeUp .4s ease;
+  }
+  .login-logo { font-family:'DM Serif Display',serif; font-size:13px; letter-spacing:.35em; color:var(--gold-dim); text-transform:uppercase; margin-bottom:8px; }
+  .login-title { font-size:22px; font-weight:900; color:var(--text); text-align:center; margin-bottom:32px; line-height:1.4; }
+  .login-title span { color:var(--gold); }
+  .login-field { width:100%; max-width:320px; margin-bottom:12px; }
+  .login-field label { font-size:11px; color:var(--text-muted); letter-spacing:.15em; display:block; margin-bottom:6px; }
+  .login-field input {
+    width:100%; background:var(--surface); border:1.5px solid var(--border);
+    border-radius:var(--radius-sm); padding:14px 16px; color:var(--text);
+    font-family:inherit; font-size:16px; outline:none; transition:border-color .18s;
+  }
+  .login-field input:focus { border-color:var(--gold-dim); }
+  .login-field input.error { border-color:var(--danger); }
+  .login-error { font-size:12px; color:#e8a0a0; margin-top:6px; display:none; }
+  .btn-login {
+    width:100%; max-width:320px; background:linear-gradient(135deg,#a07840,var(--gold));
+    border:none; border-radius:var(--radius); padding:15px; color:#0d0d0d;
+    font-family:inherit; font-size:16px; font-weight:900; cursor:pointer;
+    letter-spacing:.05em; box-shadow:0 4px 20px rgba(201,169,110,.3);
+    transition:opacity .18s, transform .12s; margin-top:4px;
+  }
+  .btn-login:hover { opacity:.9; transform:translateY(-1px); }
+  .login-hint { font-size:11px; color:var(--text-muted); margin-top:20px; text-align:center; line-height:1.7; }
+
+  /* ── 免責同意画面 ── */
+  #screen-disclaimer {
+    position:fixed; inset:0; background:var(--bg); z-index:1900;
+    display:flex; flex-direction:column;
+    overflow-y:auto; animation:fadeUp .4s ease;
+  }
+  .disclaimer-inner { max-width:480px; margin:0 auto; padding:32px 20px 48px; width:100%; }
+  .disclaimer-badge { font-size:10px; letter-spacing:.3em; color:var(--gold-dim); font-family:'DM Serif Display',serif; text-transform:uppercase; margin-bottom:12px; }
+  .disclaimer-title { font-size:20px; font-weight:900; color:var(--text); margin-bottom:20px; line-height:1.4; }
+  .disclaimer-box {
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; margin-bottom:20px; font-size:13px; color:var(--text-sub); line-height:1.9;
+  }
+  .disclaimer-box strong { color:var(--text); font-weight:700; }
+  .disclaimer-check-row {
+    display:flex; align-items:flex-start; gap:12px;
+    background:rgba(201,169,110,.06); border:1.5px solid rgba(201,169,110,.2);
+    border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; cursor:pointer;
+  }
+  .disclaimer-check-row input[type=checkbox] { width:20px; height:20px; accent-color:var(--gold); flex-shrink:0; margin-top:1px; cursor:pointer; }
+  .disclaimer-check-label { font-size:13px; color:var(--text); line-height:1.6; cursor:pointer; }
+  .btn-agree {
+    width:100%; background:linear-gradient(135deg,#a07840,var(--gold));
+    border:none; border-radius:var(--radius); padding:15px; color:#0d0d0d;
+    font-family:inherit; font-size:15px; font-weight:900; cursor:pointer;
+    letter-spacing:.05em; box-shadow:0 4px 20px rgba(201,169,110,.3);
+    transition:opacity .18s; opacity:.4; pointer-events:none;
+  }
+  .btn-agree.active { opacity:1; pointer-events:auto; }
+
+  /* ── カスタム保存モーダル ── */
+  #modal-custom { position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:1800; display:none; align-items:flex-end; justify-content:center; backdrop-filter:blur(4px); }
+  #modal-custom.open { display:flex; }
+  .modal-sheet { background:var(--surface); border-radius:20px 20px 0 0; border-top:1px solid var(--border); padding:24px 20px 48px; width:100%; max-width:480px; animation:slideUp .3s ease; }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 20px; }
+  .modal-title { font-size:16px; font-weight:900; color:var(--text); margin-bottom:4px; }
+  .modal-sub { font-size:12px; color:var(--text-sub); margin-bottom:20px; line-height:1.6; }
+  .custom-field { margin-bottom:14px; }
+  .custom-field label { font-size:11px; color:var(--text-muted); letter-spacing:.1em; display:block; margin-bottom:6px; }
+  .custom-field input, .custom-field select { width:100%; background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; color:var(--text); font-family:inherit; font-size:14px; outline:none; transition:border-color .18s; }
+  .custom-field input:focus, .custom-field select:focus { border-color:var(--gold-dim); }
+  .custom-field select option { background:var(--surface2); }
+  .custom-row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .btn-save-custom { width:100%; background:linear-gradient(135deg,#a07840,var(--gold)); border:none; border-radius:var(--radius); padding:14px; color:#0d0d0d; font-family:inherit; font-size:15px; font-weight:900; cursor:pointer; margin-top:4px; transition:opacity .18s; }
+  .btn-modal-close { display:block; width:100%; background:none; border:none; color:var(--text-muted); font-family:inherit; font-size:13px; cursor:pointer; padding:12px; margin-top:4px; }
+  .saved-recipe-list { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .saved-recipe-card { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:14px 16px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:border-color .18s; }
+  .saved-recipe-card:hover { border-color:var(--gold-dim); }
+  .saved-recipe-card.applied { border-color:var(--gold); background:rgba(201,169,110,.06); }
+  .src-icon { font-size:20px; flex-shrink:0; }
+  .src-body { flex:1; min-width:0; }
+  .src-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; }
+  .src-detail { font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .src-del { background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer; padding:4px; flex-shrink:0; }
+  .src-del:hover { color:#e8a0a0; }
+  .header-row { display:flex; align-items:flex-start; justify-content:space-between; }
+  .header-actions { display:flex; gap:8px; padding-top:2px; }
+  .hdr-btn { background:rgba(201,169,110,.1); border:1px solid rgba(201,169,110,.2); border-radius:8px; padding:5px 10px; color:var(--gold); font-family:inherit; font-size:11px; font-weight:700; cursor:pointer; transition:all .18s; white-space:nowrap; }
+  .hdr-btn:hover { background:rgba(201,169,110,.2); }
+  .btn-save-result { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; background:var(--surface); border:1.5px solid var(--gold-dim); border-radius:var(--radius); padding:13px; color:var(--gold); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; transition:all .18s; margin-bottom:10px; }
+  .btn-save-result:hover { background:rgba(201,169,110,.1); }
+
+  /* 11段階グリッド */
+  .dmg-grid-11 { grid-template-columns: repeat(6, 1fr); }
+  @media(max-width:360px){ .dmg-grid-11 { grid-template-columns: repeat(4,1fr); } }
+
+  /* multi-btn（複数選択） */
+  .multi-btn.active {
+    border-color:var(--gold);
+    background:linear-gradient(135deg,rgba(201,169,110,.12),rgba(201,169,110,.04));
+    color:var(--gold-light);
+  }
+  .multi-btn.active .cb-desc { color:var(--gold-dim); }
+
+  /* フィードバックボタン */
+  .feedback-row {
+    display:flex; gap:8px; margin-bottom:12px;
+  }
+  .fb-btn {
+    flex:1; padding:12px 8px; border-radius:var(--radius);
+    border:1.5px solid var(--border); background:var(--surface);
+    font-family:inherit; font-size:13px; font-weight:700;
+    cursor:pointer; text-align:center; transition:all .18s;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+  }
+  .fb-btn .fb-icon { font-size:20px; }
+  .fb-btn:hover { border-color:var(--gold-dim); }
+  .fb-btn.fb-good { border-color:#6ec98a; background:rgba(110,201,138,.08); color:#6ec98a; }
+  .fb-btn.fb-ok   { border-color:var(--gold-dim); background:rgba(201,169,110,.08); color:var(--gold); }
+  .fb-btn.fb-weak { border-color:#e8a04a; background:rgba(232,160,74,.08); color:#e8a04a; }
+  .fb-btn.fb-bivi { border-color:var(--danger); background:rgba(201,110,110,.08); color:#e8a0a0; }
+  .fb-result-label {
+    text-align:center; font-size:12px; color:var(--text-muted);
+    margin-bottom:12px; padding:8px;
+    background:var(--surface); border-radius:var(--radius-sm);
+    border:1px solid var(--border);
+  }
+
+  /* 自己調整入力 */
+  .adjust-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .adjust-row {
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface2); border:1.5px solid var(--border);
+    border-radius:var(--radius-sm); padding:10px 12px;
+  }
+  .adjust-zone-label { font-size:12px; color:var(--text-sub); min-width:80px; }
+  .adjust-input {
+    flex:1; background:transparent; border:none; border-bottom:1px solid var(--border);
+    color:var(--gold-light); font-family:inherit; font-size:14px; font-weight:700;
+    outline:none; text-align:center; padding:2px 4px;
+  }
+  .adjust-input::placeholder { color:var(--text-muted); font-weight:400; font-size:12px; }
+</style>
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="screen-login">
+  <div id="login-container" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+    <div class="login-title">感覚を数値へ、<br><span>迷いをロジックに。</span></div>
+    <div class="login-field">
+      <label>PASSCODE</label>
+      <input type="password" id="login-input" placeholder="パスコードを入力" inputmode="numeric">
+      <div class="login-error" id="login-error">パスコードが違います</div>
+    </div>
+    <button class="btn-login" onclick="doLogin()">ログイン</button>
+    <div class="login-hint">本アプリは美容師専用のシミュレーションツールです。<br>パスコードはサロン管理者にお問い合わせください。</div>
+  </div>
+</div>
+
+<!-- 免責同意画面 -->
+<div id="screen-disclaimer" style="display:none;">
+  <div class="disclaimer-inner">
+    <div class="disclaimer-badge">重要事項</div>
+    <div class="disclaimer-title">ご利用前に<br>必ずお読みください</div>
+    <div class="disclaimer-box">
+      本アプリは、<strong>美容師の判断を補助するためのシミュレーションツール</strong>です。<br><br>
+      算出される数値・配合比率はあくまで<strong>目安</strong>であり、実際の施術は必ず毛髪診断の結果に基づき、<strong>技術者の自己責任</strong>で行ってください。<br><br>
+      本アプリの使用によって生じた損害（ビビり・断毛・その他いかなる損害）について、<strong>開発者は一切の責任を負いません。</strong><br><br>
+      また、カスタム保存した配合レシピはユーザー自身が設定・管理するものであり、その内容・結果に対する責任はすべてユーザー自身に帰属します。
+    </div>
+    <label class="disclaimer-check-row" onclick="toggleAgree()">
+      <input type="checkbox" id="agree-check">
+      <span class="disclaimer-check-label">上記の内容を理解し、自己責任のもとで本アプリを使用することに同意します。</span>
+    </label>
+    <button class="btn-agree" id="btn-agree" onclick="doAgree()">同意してはじめる</button>
+  </div>
+</div>
+
+<!-- カスタム保存モーダル -->
+<div id="modal-custom" onclick="closeModalOutside(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">レシピをカスタム保存</div>
+    <div class="modal-sub">自分だけの配合メモを保存できます。<br>保存内容はこの端末にのみ記録されます。</div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<header>
+  <div class="header-row">
+    <div>
+      <div class="header-title">薬剤選定 <span>ナビ</span></div>
+    </div>
+    <div class="header-actions">
+      <button class="hdr-btn" onclick="openSavedModal()">💾 保存済み</button>
+      <button class="hdr-btn" onclick="doLogout()">ログアウト</button>
+    </div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+  </div>
+  <div class="progress-label" id="progressLabel">診断スタート</div>
+</header>
+
+<main>
+
+<!-- STEP 1: メニュー -->
+<div class="section active" id="step1">
+  <div class="section-label">Step 01</div>
+  <div class="section-title">施術メニューを<br>選択してください</div>
+  <div class="section-sub">今回の施術目的に合わせて選んでください</div>
+  <div class="choice-grid">
+    <button class="choice-btn" data-val="straight" onclick="sel(this,'menu')">
+      <span class="cb-icon">✦</span>
+      <span class="cb-label">縮毛矯正</span>
+      <div class="cb-desc">クリームタイプ1液 / ストレートアイロン使用</div>
+    </button>
+    <button class="choice-btn" data-val="digital" onclick="sel(this,'menu')">
+      <span class="cb-icon">〇</span>
+      <span class="cb-label">デジタルパーマ</span>
+      <div class="cb-desc">クリームタイプ1液 / ロッド+熱処理</div>
+    </button>
+    <button class="choice-btn" data-val="cold" onclick="sel(this,'menu')">
+      <span class="cb-icon">◎</span>
+      <span class="cb-label">コールドパーマ</span>
+      <div class="cb-desc">リキッドタイプ1液使用</div>
+    </button>
+    <button class="choice-btn" data-val="retouch" onclick="sel(this,'menu')">
+      <span class="cb-icon">↑</span>
+      <span class="cb-label">リタッチ（根元のみ）</span>
+      <div class="cb-desc">前回施術部分は健康 / 新生部のみ施術</div>
+    </button>
+
+  </div>
+  <div class="nav-row">
+    <button class="btn-next" id="nextBtn1" onclick="goStep(2)" disabled>次へ →</button>
+  </div>
+</div>
+
+<!-- STEP 2: 履歴 -->
+<div class="section" id="step2">
+  <div class="section-label">Step 02</div>
+  <div class="section-title">カラー・パーマの<br>履歴はありますか？</div>
+  <div class="section-sub">最も直近の履歴を選んでください</div>
+  <div class="choice-grid">
+    <button class="choice-btn" data-val="virgin" onclick="sel(this,'history')">
+      <span class="cb-label">バージンヘア</span>
+      <div class="cb-desc">カラー・パーマ・縮毛矯正 すべて未施術</div>
+    </button>
+    <button class="choice-btn" data-val="color" onclick="sel(this,'history')">
+      <span class="cb-label">カラーのみ</span>
+      <div class="cb-desc">パーマ・縮毛矯正の履歴なし</div>
+    </button>
+    <button class="choice-btn" data-val="perm" onclick="sel(this,'history')">
+      <span class="cb-label">パーマ・縮毛矯正あり</span>
+      <div class="cb-desc">パーマまたは縮毛矯正の履歴あり</div>
+    </button>
+    <button class="choice-btn" data-val="bleach" onclick="sel(this,'history')">
+      <span class="cb-label">ブリーチ・ハイライトあり</span>
+      <div class="cb-desc">ブリーチ・ハイライト履歴あり（回数問わず）</div>
+    </button>
+    <button class="choice-btn" data-val="whitehair" onclick="sel(this,'history')">
+      <span class="cb-label">白髪染め</span>
+      <div class="cb-desc">白髪染め・白髪染め縮毛矯正</div>
+    </button>
+  </div>
+  <div class="nav-row">
+    <button class="btn-back" onclick="goStep(1)">← 戻る</button>
+    <button class="btn-next" id="nextBtn2" onclick="goStep(3)" disabled>次へ →</button>
+  </div>
+</div>
+
+<!-- STEP 3: 毛髪タイプ -->
+<div class="section" id="step3">
+  <div class="section-label">Step 03</div>
+  <div class="section-title">毛髪の太さ・硬さ<br>（根元付近の健康毛）</div>
+  <div class="section-sub">バージン毛に近い根元を基準にしてください</div>
+  <div class="choice-grid grid-2">
+    <button class="choice-btn" data-val="coarse" onclick="sel(this,'texture')">
+      <span class="cb-label">太い・硬い</span>
+      <div class="cb-desc">剛毛・硬毛タイプ</div>
+    </button>
+    <button class="choice-btn" data-val="normal" onclick="sel(this,'texture')">
+      <span class="cb-label">普通</span>
+      <div class="cb-desc">中程度</div>
+    </button>
+    <button class="choice-btn" data-val="fine" onclick="sel(this,'texture')">
+      <span class="cb-label">細い・やわらかい</span>
+      <div class="cb-desc">軟毛・細毛</div>
+    </button>
+    <button class="choice-btn" data-val="very_fine" onclick="sel(this,'texture')">
+      <span class="cb-label">非常に細い・猫っ毛</span>
+      <div class="cb-desc">極細毛・超軟毛</div>
+    </button>
+  </div>
+  <div class="nav-row">
+    <button class="btn-back" onclick="goStep(2)">← 戻る</button>
+    <button class="btn-next" id="nextBtn3" onclick="goStep(4)" disabled>次へ →</button>
+  </div>
+</div>
+
+<!-- STEP 4: くせタイプ -->
+<div class="section" id="step4">
+  <div class="section-label">Step 04</div>
+  <div class="section-title">くせのタイプと<br>強さを教えてください</div>
+  <div class="section-sub">最も近いものを選んでください</div>
+  <div class="choice-grid">
+    <button class="choice-btn" data-val="wave_weak" onclick="sel(this,'kuse')">
+      <span class="cb-label">波状毛・弱</span>
+      <div class="cb-desc">S字のゆるいうねり。広がり・パサつき程度</div>
+    </button>
+    <button class="choice-btn" data-val="wave_strong" onclick="sel(this,'kuse')">
+      <span class="cb-label">波状毛・強</span>
+      <div class="cb-desc">はっきりした波状うねり。まとまらない</div>
+    </button>
+    <button class="choice-btn" data-val="twist" onclick="sel(this,'kuse')">
+      <span class="cb-label">捻転毛</span>
+      <div class="cb-desc">毛が螺旋状にねじれている。ザラつきあり</div>
+    </button>
+    <button class="choice-btn" data-val="shrink" onclick="sel(this,'kuse')">
+      <span class="cb-label">縮毛・爆毛</span>
+      <div class="cb-desc">強いちぢれ・爆発的な広がり</div>
+    </button>
+    <button class="choice-btn" data-val="porous" onclick="sel(this,'kuse')">
+      <span class="cb-label">ポーラス毛（広がり系）</span>
+      <div class="cb-desc">くせより多孔質ダメージによる広がり・うねり</div>
+    </button>
+    <button class="choice-btn" data-val="na" onclick="sel(this,'kuse')">
+      <span class="cb-label">パーマ施術 / 不問</span>
+      <div class="cb-desc">コールドパーマ・デジパー目的</div>
+    </button>
+  </div>
+  <div class="nav-row">
+    <button class="btn-back" onclick="goStep(3)">← 戻る</button>
+    <button class="btn-next" id="nextBtn4" onclick="goStep(5)" disabled>次へ →</button>
+  </div>
+</div>
+
+<!-- STEP 5: 部位別ダメージ -->
+<div class="section" id="step5">
+  <div class="section-label">Step 05</div>
+  <div class="section-title">部位別のダメージを<br>教えてください</div>
+  <div class="section-sub">0=健康 〜 10=限界。各部位ごとに選んでください</div>
+
+  <div class="zone-grid">
+    <div class="zone-row">
+      <div class="zone-name-row">🔴 根元（新生部）<span class="zone-sel-label" id="lbl_root">未選択</span></div>
+      <div class="dmg-btn-grid dmg-grid-11" id="btns_root">
+        <button class="dmg-btn" onclick="selectDmg('root',0,this)"><span class="dmg-num">0</span><span class="dmg-txt">健康</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',1,this)"><span class="dmg-num">1</span><span class="dmg-txt">極軽微</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',2,this)"><span class="dmg-num">2</span><span class="dmg-txt">軽微</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',3,this)"><span class="dmg-num">3</span><span class="dmg-txt">軽微+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',4,this)"><span class="dmg-num">4</span><span class="dmg-txt">軽度</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',5,this)"><span class="dmg-num">5</span><span class="dmg-txt">軽度+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',6,this)"><span class="dmg-num">6</span><span class="dmg-txt">中程度</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',7,this)"><span class="dmg-num">7</span><span class="dmg-txt">中程度+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',8,this)"><span class="dmg-num">8</span><span class="dmg-txt">高</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',9,this)"><span class="dmg-num">9</span><span class="dmg-txt">高+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('root',10,this)"><span class="dmg-num">10</span><span class="dmg-txt">限界</span></button>
+      </div>
+    </div>
+    <div class="zone-row">
+      <div class="zone-name-row">🟡 中間<span class="zone-sel-label" id="lbl_mid">未選択</span></div>
+      <div class="dmg-btn-grid dmg-grid-11" id="btns_mid">
+        <button class="dmg-btn" onclick="selectDmg('mid',0,this)"><span class="dmg-num">0</span><span class="dmg-txt">健康</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',1,this)"><span class="dmg-num">1</span><span class="dmg-txt">極軽微</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',2,this)"><span class="dmg-num">2</span><span class="dmg-txt">軽微</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',3,this)"><span class="dmg-num">3</span><span class="dmg-txt">軽微+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',4,this)"><span class="dmg-num">4</span><span class="dmg-txt">軽度</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',5,this)"><span class="dmg-num">5</span><span class="dmg-txt">軽度+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',6,this)"><span class="dmg-num">6</span><span class="dmg-txt">中程度</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',7,this)"><span class="dmg-num">7</span><span class="dmg-txt">中程度+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',8,this)"><span class="dmg-num">8</span><span class="dmg-txt">高</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',9,this)"><span class="dmg-num">9</span><span class="dmg-txt">高+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('mid',10,this)"><span class="dmg-num">10</span><span class="dmg-txt">限界</span></button>
+      </div>
+    </div>
+    <div class="zone-row">
+      <div class="zone-name-row">🔵 毛先<span class="zone-sel-label" id="lbl_tip">未選択</span></div>
+      <div class="dmg-btn-grid dmg-grid-11" id="btns_tip">
+        <button class="dmg-btn" onclick="selectDmg('tip',0,this)"><span class="dmg-num">0</span><span class="dmg-txt">健康</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',1,this)"><span class="dmg-num">1</span><span class="dmg-txt">極軽微</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',2,this)"><span class="dmg-num">2</span><span class="dmg-txt">軽微</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',3,this)"><span class="dmg-num">3</span><span class="dmg-txt">軽微+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',4,this)"><span class="dmg-num">4</span><span class="dmg-txt">軽度</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',5,this)"><span class="dmg-num">5</span><span class="dmg-txt">軽度+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',6,this)"><span class="dmg-num">6</span><span class="dmg-txt">中程度</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',7,this)"><span class="dmg-num">7</span><span class="dmg-txt">中程度+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',8,this)"><span class="dmg-num">8</span><span class="dmg-txt">高</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',9,this)"><span class="dmg-num">9</span><span class="dmg-txt">高+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('tip',10,this)"><span class="dmg-num">10</span><span class="dmg-txt">限界</span></button>
+      </div>
+    </div>
+    <div class="zone-row">
+      <div class="zone-name-row">⚪ 顔周り・フェイスライン<span class="zone-sel-label" id="lbl_face">未選択</span></div>
+      <div class="dmg-btn-grid dmg-grid-11" id="btns_face">
+        <button class="dmg-btn" onclick="selectDmg('face',0,this)"><span class="dmg-num">0</span><span class="dmg-txt">健康</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',1,this)"><span class="dmg-num">1</span><span class="dmg-txt">極軽微</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',2,this)"><span class="dmg-num">2</span><span class="dmg-txt">軽微</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',3,this)"><span class="dmg-num">3</span><span class="dmg-txt">軽微+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',4,this)"><span class="dmg-num">4</span><span class="dmg-txt">軽度</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',5,this)"><span class="dmg-num">5</span><span class="dmg-txt">軽度+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',6,this)"><span class="dmg-num">6</span><span class="dmg-txt">中程度</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',7,this)"><span class="dmg-num">7</span><span class="dmg-txt">中程度+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',8,this)"><span class="dmg-num">8</span><span class="dmg-txt">高</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',9,this)"><span class="dmg-num">9</span><span class="dmg-txt">高+</span></button>
+        <button class="dmg-btn" onclick="selectDmg('face',10,this)"><span class="dmg-num">10</span><span class="dmg-txt">限界</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn-back" onclick="goStep(4)">← 戻る</button>
+    <button class="btn-next" id="nextBtn5" onclick="goStep(6)" disabled>次へ →</button>
+  </div>
+</div>
+
+<!-- STEP 6: 追加条件 -->
+<div class="section" id="step6">
+  <div class="section-label">Step 06</div>
+  <div class="section-title">追加条件を<br>教えてください</div>
+  <div class="section-sub">該当するものをすべて選んでください（複数可）</div>
+
+  <div class="choice-grid">
+    <button class="choice-btn multi-btn" data-key="gmt" onclick="toggleExtra(this,'gmt')">
+      <span class="cb-label">GMTを使用する</span>
+      <div class="cb-desc">細毛・軟毛・ポーラス毛のハリ・コシ補強に</div>
+    </button>
+    <button class="choice-btn multi-btn" data-key="spiera" onclick="toggleExtra(this,'spiera')">
+      <span class="cb-label">スピエラを使用する</span>
+      <div class="cb-desc">ハイダメージ・ビビり毛への弱酸性還元に</div>
+    </button>
+    <button class="choice-btn multi-btn" data-key="plex" onclick="toggleExtra(this,'plex')">
+      <span class="cb-label">プレックス剤を使用する</span>
+      <div class="cb-desc">S-S結合補修。ダメージ軽減・質感向上</div>
+    </button>
+  </div>
+
+  <div id="retouch-period-wrap" style="display:none;">
+    <div class="section-sub" style="margin-top:4px;">前回施術からの期間</div>
+    <div class="choice-grid grid-2" id="period-btns">
+      <button class="choice-btn" data-val="2m" onclick="sel(this,'period')"><span class="cb-label">2ヶ月以内</span></button>
+      <button class="choice-btn" data-val="4m" onclick="sel(this,'period')"><span class="cb-label">3〜4ヶ月</span></button>
+      <button class="choice-btn" data-val="6m" onclick="sel(this,'period')"><span class="cb-label">5〜6ヶ月</span></button>
+      <button class="choice-btn" data-val="over" onclick="sel(this,'period')"><span class="cb-label">7ヶ月以上</span></button>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn-back" onclick="goStep(5)">← 戻る</button>
+    <button class="btn-next" id="nextBtn6" onclick="showDisclaimer()">診断する →</button>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="section" id="stepResult">
+  <div id="resultContent"></div>
+  <button class="btn-save-result" onclick="openSaveModal()">💾 このレシピをカスタム保存する</button>
+  <div id="feedback-section" style="display:none; margin-bottom:10px;">
+    <div class="fb-result-label" id="fb-result-label"></div>
+  </div>
+  <div id="feedback-btns" style="margin-bottom:10px;">
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;letter-spacing:.1em;">施術結果を記録（1タップ）</div>
+    <div class="feedback-row">
+      <button class="fb-btn" onclick="recordFeedback('good')"><span class="fb-icon">✅</span>良好</button>
+      <button class="fb-btn" onclick="recordFeedback('ok')"><span class="fb-icon">👍</span>まあまあ</button>
+      <button class="fb-btn" onclick="recordFeedback('weak')"><span class="fb-icon">⚠️</span>弱すぎた</button>
+      <button class="fb-btn" onclick="recordFeedback('bivi')"><span class="fb-icon">❌</span>ビビり</button>
+    </div>
+  </div>
+  <button class="btn-restart" onclick="restart()">← もう一度診断する</button>
+</div>
+
+</main>
+
+<script>
+// ─────────────────────────────────
+// STATE
+// ─────────────────────────────────
+const state = {
+  menu: null, history: null, texture: null, kuse: null,
+  dmg: { root: null, mid: null, tip: null, face: null },
+  extra: { gmt: false, spiera: false, plex: false },
+  period: null
+};
+const DMG_ZONES = ['root','mid','tip','face'];
+let dmgSelected = { root:false, mid:false, tip:false, face:false };
+
+const TOTAL = 6;
+
+// ─────────────────────────────────
+// ゾーンスライダー説明
+// ─────────────────────────────────
+const dmgLabels = {
+  0:'健康', 2:'軽微', 4:'軽度', 6:'中程度', 8:'高ダメージ', 10:'限界'
+};
+
+function selectDmg(zone, val, btn) {
+  document.querySelectorAll('#btns_' + zone + ' .dmg-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  state.dmg[zone] = val;
+  dmgSelected[zone] = true;
+  const lbl = document.getElementById('lbl_' + zone);
+  lbl.textContent = String(val);
+  lbl.classList.add('selected');
+  const allSelected = DMG_ZONES.every(z => dmgSelected[z]);
+  document.getElementById('nextBtn5').disabled = !allSelected;
+}
+
+function toggleExtra(btn, key) {
+  state.extra[key] = !state.extra[key];
+  btn.classList.toggle('active', state.extra[key]);
+}
+
+// ─────────────────────────────────
+// UI helpers
+// ─────────────────────────────────
+function sel(btn, key) {
+  btn.parentElement.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  state[key] = btn.dataset.val;
+  const map = {menu:1,history:2,texture:3,kuse:4};
+  const nb = document.getElementById('nextBtn' + map[key]);
+  if (nb) nb.disabled = false;
+}
+
+function goStep(n) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('step' + n).classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+  const pct = Math.round(((n-1)/TOTAL)*100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  const labels = ['','施術メニュー','カラー・パーマ履歴','毛髪タイプ','くせタイプ','部位別ダメージ','追加条件'];
+  document.getElementById('progressLabel').textContent = `STEP ${n} / ${TOTAL} — ${labels[n]||''}`;
+  // リタッチ時は期間選択を表示
+  if (n === 6) {
+    const wrap = document.getElementById('retouch-period-wrap');
+    if (wrap) wrap.style.display = state.menu === 'retouch' ? 'block' : 'none';
+  }
+}
+
+function restart() {
+  Object.keys(state).forEach(k => { if(k!=='dmg') state[k]=null; });
+  state.dmg = {root:null,mid:null,tip:null,face:null};
+  DMG_ZONES.forEach(z => { dmgSelected[z] = false; });
+  document.querySelectorAll('.dmg-btn').forEach(b => b.classList.remove('selected'));
+  DMG_ZONES.forEach(z => {
+    const lbl = document.getElementById('lbl_' + z);
+    if (lbl) { lbl.textContent = '未選択'; lbl.classList.remove('selected'); }
+  });
+  document.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+  state.extra = { gmt:false, spiera:false, plex:false };
+  state.period = null;
+  document.querySelectorAll('.multi-btn').forEach(b => b.classList.remove('active'));
+  ['nextBtn1','nextBtn2','nextBtn3','nextBtn4','nextBtn5'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.disabled=true;
+  });
+  goStep(1);
+}
+
+// ─────────────────────────────────
+// スケール → 薬剤名変換
+// インスタ実例 + 公式マニュアルのスケール体系
+//   450〜 → 強チオ + バージン（最大450）
+//   350〜 → OS380 単品
+//   260〜 → OS380:OS90 = 6:4
+//   210〜 → OS380:OS90 = 5:5
+//   170〜 → OS90 単品
+//   145〜 → OS90:@50 = 7:3
+//   125〜 → OS90:@50 = 6:4
+//   100〜 → OS90:@50 = 5:5
+//   75〜  → @50 単品
+//   45〜  → @50:Tr = 7:3
+//   20〜  → @50:Tr = 5:5
+//   8〜   → @50:Tr = 3:7
+//   2〜   → Tr主体（施術要注意）
+//   0     → 塗布なし
+// ─────────────────────────────────
+// 公式ブレンド表（2026/04/04 実物写真より完全準拠）
+// 強さ | 配合比率
+//  450 | チオ2:バージン1
+//  390 | チオ1:バージン1
+//  380 | OS380 単品
+//  230 | OS90:OS380 = 1:1
+//  180 | OS90:OS380 = 2:1
+//  160 | OS90:OS380 = 3:1
+//  150 | OS90:OS380 = 4:1
+//  140 | OS90:OS380 = 5:1
+//  130 | OS90:OS380 = 6:1
+//   90 | OS90 単品
+//   70 | OS90:α50 = 1:1
+//   60 | OS90:α50 = 1:2
+//   50 | α50 単品
+//   33 | α50:Tr = 2:1
+//   25 | α50:Tr = 1:1
+//   16 | α50:Tr = 1:2
+//   12 | α50:Tr = 1:3
+//   10 | α50:Tr = 1:4
+//    8 | α50:Tr = 1:5
+// ─────────────────────────────────
+// 公式ブレンド表（img2完全準拠・全段階）
+// ─────────────────────────────────
+function scaleToRecipe(scale) {
+  if (scale >= 420) return { product: 'チオ + バージン', blend: 'チオ2:バージン1', note: 'バージン単品不可' };
+  if (scale >= 385) return { product: 'チオ + バージン', blend: 'チオ1:バージン1', note: 'バージン単品不可' };
+  if (scale >= 350) return { product: 'OS380', blend: 'OS380 単品', note: '' };
+  if (scale >= 310) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 1:4', note: '' };
+  if (scale >= 290) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 1:3', note: '' };
+  if (scale >= 255) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 1:2', note: '' };
+  if (scale >= 205) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 1:1', note: '' };
+  if (scale >= 170) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 2:1', note: '' };
+  if (scale >= 155) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 3:1', note: '' };
+  if (scale >= 145) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 4:1', note: '' };
+  if (scale >= 135) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 5:1', note: '' };
+  if (scale >= 125) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 6:1', note: '' };
+  if (scale >= 115) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 8:1', note: '' };
+  if (scale >= 105) return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 12:1', note: '' };
+  if (scale >= 95)  return { product: 'OS90 + OS380', blend: 'OS90:OS380 = 20:1', note: '' };
+  if (scale >= 80)  return { product: 'OS90', blend: 'OS90 単品', note: '' };
+  if (scale >= 65)  return { product: 'OS90 + α50', blend: 'OS90:α50 = 1:1', note: '' };
+  if (scale >= 55)  return { product: 'OS90 + α50', blend: 'OS90:α50 = 1:2', note: '' };
+  if (scale >= 42)  return { product: 'α50', blend: 'α50 単品', note: '' };
+  if (scale >= 29)  return { product: 'α50 + Tr', blend: 'α50:Tr = 2:1', note: '' };
+  if (scale >= 21)  return { product: 'α50 + Tr', blend: 'α50:Tr = 1:1', note: '' };
+  if (scale >= 14)  return { product: 'α50 + Tr', blend: 'α50:Tr = 1:2', note: '' };
+  if (scale >= 11)  return { product: 'α50 + Tr', blend: 'α50:Tr = 1:3', note: '' };
+  if (scale >= 9)   return { product: 'α50 + Tr', blend: 'α50:Tr = 1:4', note: '' };
+  if (scale >= 7)   return { product: 'α50 + Tr', blend: 'α50:Tr = 1:5', note: '' };
+  if (scale >= 4)   return { product: 'α50 + Tr', blend: 'α50:Tr = 1:10', note: '⚠ 極弱め' };
+  if (scale >= 3)   return { product: 'α50 + Tr', blend: 'α50:Tr = 1:15', note: '⚠ 極弱め' };
+  if (scale >= 2)   return { product: 'α50 + Tr', blend: 'α50:Tr = 1:20', note: '⚠ 極弱め' };
+  if (scale >= 1)   return { product: 'Tr主体', blend: 'Tr主体', note: '⚠ 施術慎重に' };
+  return { product: '塗布なし', blend: '—', note: '⚠ ダメージ限界' };
+}
+
+// ─────────────────────────────────
+// 公式セレクトめやす表（img1完全準拠）に基づくベース値
+// ─────────────────────────────────
+function calcScale(dmgVal, zone, history, texture, kuse, extra) {
+  let base = 180;
+  extra = extra || {};
+
+  // くせタイプを強度数値に変換
+  const kuseLevel = { shrink:3, twist:2.5, wave_strong:2, wave_weak:1, porous:0.8, na:1 }[kuse] || 1;
+
+  if (history === 'virgin') {
+    if (texture === 'coarse') {
+      if (kuseLevel >= 3)        base = 450;
+      else if (kuseLevel >= 2.5) base = 415;
+      else if (kuseLevel >= 2)   base = 380;
+      else                       base = 305;
+    } else if (texture === 'normal') {
+      if (kuseLevel >= 2.5) base = 305;
+      else if (kuseLevel >= 2) base = 230;
+      else                     base = 205;
+    } else if (texture === 'fine') {
+      if (kuseLevel >= 2.5) base = 205;
+      else if (kuseLevel >= 2) base = 180;
+      else                     base = 160;
+    } else {
+      if (kuseLevel >= 2) base = 180;
+      else                base = 150;
+    }
+  } else if (history === 'color') {
+    if (texture === 'coarse') {
+      if (kuseLevel >= 2.5)      base = 230;
+      else if (kuseLevel >= 2)   base = 205;
+      else if (kuse === 'porous') base = 90;
+      else                       base = 180;
+    } else if (texture === 'normal') {
+      if (kuseLevel >= 2.5)      base = 205;
+      else if (kuseLevel >= 2)   base = 180;
+      else if (kuse === 'porous') base = 70;
+      else                       base = 130;
+    } else if (texture === 'fine') {
+      if (kuseLevel >= 2.5)      base = 155;
+      else if (kuseLevel >= 2)   base = 130;
+      else if (kuse === 'porous') base = 60;
+      else                       base = 90;
+    } else {
+      if (kuseLevel >= 2)        base = 110;
+      else if (kuse === 'porous') base = 50;
+      else                       base = 80;
+    }
+  } else if (history === 'perm') {
+    if (texture === 'coarse') {
+      if (kuseLevel >= 2.5) base = 120;
+      else if (kuseLevel >= 2) base = 90;
+      else                     base = 50;
+    } else if (texture === 'normal') {
+      if (kuseLevel >= 2.5) base = 90;
+      else if (kuseLevel >= 2) base = 70;
+      else                     base = 33;
+    } else {
+      if (kuseLevel >= 2) base = 60;
+      else                base = 25;
+    }
+  } else if (history === 'bleach') {
+    if (texture === 'coarse') base = 25;
+    else if (texture === 'normal') base = 20;
+    else base = 16;
+  } else if (history === 'whitehair') {
+    if (texture === 'coarse')      base = kuseLevel >= 2 ? 90 : 60;
+    else if (texture === 'normal') base = kuseLevel >= 2 ? 60 : 33;
+    else                           base = 25;
+  }
+
+  // ゾーン補正
+  if      (zone === 'root') base = Math.min(base, 480);
+  else if (zone === 'mid')  base = base * 0.82;
+  else if (zone === 'tip')  base = base * 0.52;
+  else if (zone === 'face') base = base * 0.38;
+
+  // ダメージ補正（段階的・緩やかカーブ）
+  // 公式「最初は弱い方から」は守りつつ、現場感覚と乖離しないよう調整
+  // dmg0〜3：ほぼ影響なし / dmg4〜6：中程度 / dmg7〜10：急落
+  let dmgPenalty;
+  if (dmgVal <= 3)       dmgPenalty = dmgVal * 4;
+  else if (dmgVal <= 6)  dmgPenalty = 12 + (dmgVal - 3) * 10;
+  else if (dmgVal <= 8)  dmgPenalty = 42 + (dmgVal - 6) * 18;
+  else                   dmgPenalty = 78 + (dmgVal - 8) * 28;
+  base -= dmgPenalty;
+
+  // スピエラ補正（弱酸性還元でさらに弱める）
+  if (extra.spiera) base = base * 0.7;
+
+  // GMT補正（細毛のハリ補強でやや上乗せ）
+  if (extra.gmt && (texture === 'fine' || texture === 'very_fine')) base = base * 1.08;
+
+  return Math.max(0, Math.round(base));
+}
+
+// ─────────────────────────────────
+// メイン計算
+// ─────────────────────────────────
+function calcResult() {
+  const { menu, history, texture, kuse, dmg, extra } = state;
+
+  if (menu === 'cold') { renderCold(); return; }
+
+  const zones = ['root','mid','tip','face'];
+  const recipes = {};
+  zones.forEach(z => {
+    const scale = calcScale(dmg[z] !== null ? dmg[z] : 0, z, history, texture, kuse, extra);
+    recipes[z] = { scale, ...scaleToRecipe(scale) };
+  });
+
+  const avgDmg = (dmg.root + dmg.mid + dmg.tip) / 3;
+
+  // ─ 放置時間（公式：最低20〜30分。その時間に耐える強さでブレンドが鉄則）
+  let timeRoot, timeTip;
+  if (history === 'virgin' && (kuse === 'strong' || kuse === 'mid')) {
+    timeRoot = 30; timeTip = 25;
+  } else if (history === 'virgin') {
+    timeRoot = 25; timeTip = 20;
+  } else if (avgDmg >= 8) {
+    // 公式：ハイダメージは40分放置できる弱さでブレンド
+    timeRoot = 40; timeTip = 20;
+  } else if (avgDmg >= 6) {
+    timeRoot = 30; timeTip = 15;
+  } else if (avgDmg >= 4) {
+    timeRoot = 25; timeTip = 12;
+  } else {
+    timeRoot = 20; timeTip = 15;
+  }
+
+  // ─ 2回塗り（公式インスタ img19 参照：強くせで1回目→流す→2回目）
+  const isDouble = (kuse === 'strong' && avgDmg <= 4 && history !== 'bleach');
+
+  // ─ CMC前処理が必要か
+  const needsCMC = (history === 'bleach' || avgDmg >= 7);
+
+  // ─ アイロン温度（公式：通常180℃ / ハイダメージは170℃）
+  const ironTemp = avgDmg >= 7 ? 170 : 180;
+
+  // ─ オイルコートTrグレード（公式：3種 / 5種 / 7種）
+  // 3種：プライムケア+GC1+GC2のみ
+  // 5種：+Tr+アフターコート+アイロン → ツヤUP
+  // 7種：+CMC前処理+オイルプレックス → ハイダメージ推奨
+  let trGrade = 'none';
+  if (avgDmg >= 7 || history === 'bleach') trGrade = '7';
+  else if (avgDmg >= 4 || history === 'perm') trGrade = '5';
+  else if (avgDmg >= 2) trGrade = '3';
+
+  // ─ 注意事項
+  const cautions = [];
+  if (history === 'bleach') {
+    cautions.push('⚠️ ブリーチ履歴あり：目安スケール25〜16。ハイブリーチは16〜10。必ず弱めスペック×たっぷり塗布で。ビビり・断毛リスクを事前に説明してください。');
+  }
+  if (dmg.tip >= 9) {
+    cautions.push('⚠️ 毛先ダメージが限界レベルです。施術前のカットを強く推奨します。');
+  }
+  if (avgDmg >= 8) {
+    cautions.push('💡 ハイダメージ毛は「弱めスペック × たっぷり塗布」が鉄則。強い薬剤は厳禁です。まずはトリートメントのみから始めることも検討してください。');
+  }
+  if (history === 'virgin' && texture === 'coarse' && kuse === 'strong') {
+    cautions.push('💡 オイルストレートバージンは単品使用不可です。チオグリコール酸（強チオ）とブレンドして使用します。チオ2:バージン1（強さ450）またはチオ1:バージン1（強さ390）。');
+  }
+  if (recipes.tip.product === '塗布なし' || recipes.tip.scale <= 5) {
+    cautions.push('💡 毛先は前回施術部が健康な場合、塗布なし or 極弱めで十分です。');
+  }
+
+  lastRecipes = recipes;
+  renderStraight({ menu, recipes, timeRoot, timeTip, isDouble, needsCMC, ironTemp, trGrade, cautions, avgDmg, extra });
+}
+
+// ─────────────────────────────────
+// ストレート / デジパー / リタッチ レンダリング
+// ─────────────────────────────────
+function renderStraight({ menu, recipes, timeRoot, timeTip, isDouble, needsCMC, ironTemp, trGrade, cautions, avgDmg, extra }) {
+  const menuLabel = {
+    straight:'縮毛矯正',
+    digital:'デジタルパーマ',
+    retouch:'リタッチ（根元のみ）'
+  }[menu] || '縮毛矯正';
+
+  const zoneInfo = [
+    { key:'root', icon:'🔴', label:'根元（新生部）' },
+    { key:'mid',  icon:'🟡', label:'中間' },
+    { key:'tip',  icon:'🔵', label:'毛先' },
+    { key:'face', icon:'⚪', label:'顔周り・フェイスライン' },
+  ];
+
+  const recipeRows = zoneInfo.map(z => {
+    const r = recipes[z.key];
+    const isZero = r.product === '塗布なし';
+    const isLow = r.scale < 30;
+    return `
+      <div class="recipe-zone-row">
+        <div class="recipe-zone-label" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+          ${z.icon} ${z.label}
+        </div>
+        <div class="recipe-zone-body">
+          <span class="scale-val-badge"><span>強さ</span><span class="scale-num">${isZero ? '—' : r.scale}</span></span>
+          <div class="recipe-product">${r.product}</div>
+          <div class="recipe-num-badge ${isZero?'zero':isLow?'low':''}">${isZero?'—':r.blend}</div>
+        </div>
+        ${r.note ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${r.note}</div>` : ''}
+      </div>
+    `;
+  }).join('<hr class="recipe-zone-divider">');
+
+  const timeHtml = `
+    <div class="time-badge-row">
+      <div class="time-badge"><span class="time-badge-label">根元〜中間</span> ${timeRoot}分〜</div>
+      <div class="time-badge"><span class="time-badge-label">毛先</span> ${timeTip}分〜</div>
+      <div class="time-badge"><span class="time-badge-label">アイロン温度</span> ${ironTemp}℃</div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">公式：放置は最低20〜30分。その時間に耐える強さでブレンドするのが鉄則。還元チェック（スルスル感）・軟化チェック（指巻き戻り）で確認。</div>
+  `;
+
+  const doubleHtml = isDouble ? `
+    <div class="double-app-card">
+      <div class="double-app-title">✓ 2回塗り推奨</div>
+      <div class="double-app-text">強いくせには2回塗り工程が有効です。<br>1回目塗布 → 30分放置 → 一度流す → 2回目塗布 → 25分放置</div>
+    </div>
+  ` : '';
+
+  const cmcHtml = needsCMC ? `
+    <div class="info-box" style="border-color:rgba(110,201,138,.25);background:rgba(110,201,138,.05);color:#6ec98a;">
+      ✓ CMC前処理推奨 — 塗布前にCMCをたっぷりスプレーして髪を整えてください。ハイダメージ毛の施術クオリティが向上します。
+    </div>
+  ` : '';
+
+
+  const cautionsHtml = cautions.map(c=>`<div class="caution-box">${c}</div>`).join('');
+
+  // extra使用中の表示
+  const extraTags = [];
+  if (extra && extra.gmt)    extraTags.push('GMT使用');
+  if (extra && extra.spiera) extraTags.push('スピエラ使用（弱酸性）');
+  if (extra && extra.plex)   extraTags.push('プレックス剤使用');
+  const extraNoteHtml = extraTags.length > 0
+    ? `<div class="info-box" style="border-color:rgba(110,201,138,.3);background:rgba(110,201,138,.05);color:#6ec98a;">
+        ✓ 追加剤：${extraTags.join(' / ')}<br>
+        <span style="font-size:11px;color:var(--text-muted);">スケール値はこれらを考慮して算出しています</span>
+       </div>`
+    : '';
+
+  const infoHtml = menu === 'digital' ? `<div class="info-box">デジタルパーマはクリームタイプ1液を使用。熱変性を考慮し、ストレートより1〜2段階弱めの配合にしてください。</div>` : '';
+
+
+
+  // オイルコートTrフロー（中間水洗時の詳細）
+
+  document.getElementById('resultContent').innerHTML = `
+    <div class="result-hero">
+      <div class="result-badge">RESULT — ${menuLabel.toUpperCase()}</div>
+      <div class="result-main-product">部位別レシピ</div>
+      <div class="result-main-desc">部位ごとのダメージ差に対応した薬剤配合です</div>
+    </div>
+    ${cautionsHtml}
+    ${cmcHtml}
+    ${infoHtml}
+    <div class="recipe-card">
+      <div class="recipe-card-head"><span class="recipe-card-icon">💊</span><span class="recipe-card-title">部位別 1液レシピ</span></div>
+      <div class="recipe-rows">${recipeRows}</div>
+    </div>
+    <div class="recipe-card">
+      <div class="recipe-card-head"><span class="recipe-card-icon">⏱</span><span class="recipe-card-title">放置時間・アイロン温度</span></div>
+      <div class="recipe-rows">${timeHtml}</div>
+    </div>
+    ${doubleHtml}
+    ${extraNoteHtml}
+    <div class="info-box">※配合・時間はすべてめやすです。還元チェック・軟化チェックでスタイリストが必ず最終判断してください。弱めから始めて徐々に調整するのが上達のコツです。</div>
+  `;
+
+  showResult();
+}
+
+// ─────────────────────────────────
+// コールドパーマ
+// ─────────────────────────────────
+function renderCold() {
+  const { texture, dmg } = state;
+  let base, blend;
+  if (texture === 'coarse') { base = 'OS380（リキッド）+ OS90（リキッド）'; blend = 'OS380:OS90=6:4'; }
+  else if (texture === 'normal') { base = 'OS90（リキッド）'; blend = '単品'; }
+  else { base = 'OS90（リキッド）+ @50（リキッド）'; blend = 'OS90:@50=5:5'; }
+
+  const avgDmg = (dmg.root + dmg.mid + dmg.tip) / 3;
+
+
+  document.getElementById('resultContent').innerHTML = `
+    <div class="result-hero">
+      <div class="result-badge">RESULT — コールドパーマ</div>
+      <div class="result-main-product">${base}</div>
+      <div class="result-main-desc">リキッドタイプ1液を使用します</div>
+    </div>
+    <div class="recipe-card">
+      <div class="recipe-card-head"><span class="recipe-card-icon">💊</span><span class="recipe-card-title">1液レシピ</span></div>
+      <div class="recipe-rows">
+        <div class="recipe-zone-row">
+          <div class="recipe-zone-label">全体</div>
+          <div class="recipe-zone-body">
+            <div class="recipe-product">${base}</div>
+            <div class="recipe-num-badge">${blend}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  `;
+  showResult();
+}
+
+// ─────────────────────────────────
+// トリートメント（公式マニュアル完全準拠）
+// ─────────────────────────────────
+
+
+function showResult() {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('stepResult').classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('progressLabel').textContent = '診断完了';
+  // フィードバックUIをリセット
+  const fbBtns = document.getElementById('feedback-btns');
+  const fbSec = document.getElementById('feedback-section');
+  if (fbBtns) fbBtns.style.display = 'block';
+  if (fbSec) fbSec.style.display = 'none';
+  window._lastSavedIdx = undefined;
+}
+
+// ═══════════════════════════════════════
+// ログイン・免責・カスタム保存 ロジック
+// ═══════════════════════════════════════
+const PASSCODE = '1234'; // ← ここを変更してください
+const AUTH_KEY = 'oilst_auth';
+const AGREED_KEY = 'oilst_agreed';
+const RECIPES_KEY = 'oilst_recipes';
+
+// 起動時認証チェック
+function bootAuth() {
+  const authed = sessionStorage.getItem(AUTH_KEY);
+  if (!authed) {
+    document.getElementById('screen-login').style.display = 'flex';
+    document.querySelector('header').style.display = 'none';
+    document.querySelector('main').style.display = 'none';
+  } else {
+    showApp();
+  }
+}
+
+function doLogin() {
+  const inp = document.getElementById('login-input');
+  const err = document.getElementById('login-error');
+  const container = document.getElementById('login-container');
+  if (inp.value === PASSCODE) {
+    sessionStorage.setItem(AUTH_KEY, '1');
+    document.getElementById('screen-login').style.display = 'none';
+    showApp();
+    inp.classList.remove('error');
+    inp.style.borderColor = '';
+    err.style.display = 'none';
+  } else {
+    // shakeアニメーション + 赤ボーダー
+    container.classList.add('shake');
+    inp.style.borderColor = '#ff4444';
+    err.style.display = 'block';
+    setTimeout(() => {
+      container.classList.remove('shake');
+    }, 400);
+    inp.value = '';
+    inp.focus();
+  }
+}
+
+// Enterキー対応（初期化後に設定）
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('login-input');
+  if (inp) inp.addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
+});
+
+function toggleAgree() {
+  const cb = document.getElementById('agree-check');
+  const btn = document.getElementById('btn-agree');
+  // checkboxのclickイベントと競合するので次tick
+  setTimeout(() => {
+    btn.classList.toggle('active', cb.checked);
+  }, 0);
+}
+
+function showDisclaimer() {
+  // 毎回チェックをリセット
+  const cb = document.getElementById('agree-check');
+  cb.checked = false;
+  document.getElementById('btn-agree').classList.remove('active');
+  // header・mainを完全に隠してから免責画面を表示
+  document.querySelector('header').style.display = 'none';
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('screen-disclaimer').style.display = 'flex';
+}
+
+function doAgree() {
+  if (!document.getElementById('agree-check').checked) return;
+  document.getElementById('screen-disclaimer').style.display = 'none';
+  document.querySelector('header').style.display = '';
+  document.querySelector('main').style.display = '';
+  calcResult();
+}
+
+function showApp() {
+  document.querySelector('header').style.display = '';
+  document.querySelector('main').style.display = '';
+}
+
+function doLogout() {
+  if (!confirm('ログアウトしますか？')) return;
+  sessionStorage.removeItem(AUTH_KEY);
+  // リロードせずDOM操作で再ログイン画面へ
+  document.querySelector('header').style.display = 'none';
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('screen-disclaimer').style.display = 'none';
+  document.getElementById('agree-check').checked = false;
+  document.getElementById('btn-agree').classList.remove('active');
+  const loginEl = document.getElementById('screen-login');
+  loginEl.style.display = 'flex';
+  document.getElementById('login-input').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('login-input').classList.remove('error');
+}
+
+// ═══════════════════════════════════════
+// カスタム保存 ロジック
+// ═══════════════════════════════════════
+let lastRecipes = null; // 最後に出た診断結果レシピ
+
+function getSaved() {
+  try { return JSON.parse(localStorage.getItem(RECIPES_KEY) || '[]'); } catch { return []; }
+}
+function setSaved(arr) {
+  localStorage.setItem(RECIPES_KEY, JSON.stringify(arr));
+}
+
+// 保存モーダルを開く（診断結果から）
+function openSaveModal() {
+  const modal = document.getElementById('modal-custom');
+  const body = document.getElementById('modal-body');
+  const { menu, history, texture, kuse } = state;
+  const zones = ['root','mid','tip','face'];
+  const zoneLabels = { root:'根元', mid:'中間', tip:'毛先', face:'顔周り' };
+
+  const recipeLines = lastRecipes ? zones.map(z => {
+    const r = lastRecipes[z];
+    return `<div style="font-size:12px;color:var(--text-sub);margin-bottom:4px;">
+      <span style="color:var(--text-muted);">${zoneLabels[z]}：</span>
+      <span style="color:var(--gold);font-weight:700;">強さ${r.scale}</span>
+      ${r.product} <span style="color:var(--gold);">${r.blend}</span>
+    </div>`;
+  }).join('') : '';
+
+  // 自己調整欄（デフォルトはスケール値）
+  const adjustRows = lastRecipes ? zones.map(z => {
+    const r = lastRecipes[z];
+    return `<div class="adjust-row">
+      <span class="adjust-zone-label">${{root:'🔴 根元',mid:'🟡 中間',tip:'🔵 毛先',face:'⚪ 顔周り'}[z]}</span>
+      <input class="adjust-input" id="adj_${z}" type="number" min="2" max="450"
+        value="${r.scale}" placeholder="強さ調整値">
+    </div>`;
+  }).join('') : '';
+
+  body.innerHTML = `
+    <div class="custom-field">
+      <label>メモ名（顧客名・条件など）</label>
+      <input type="text" id="save-name" placeholder="例：Aさん バージン強くせ" maxlength="30">
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--gold-dim);letter-spacing:.1em;margin-bottom:8px;">診断レシピ（参考）</div>
+      ${recipeLines || '<div style="font-size:12px;color:var(--text-muted);">診断を先に実行してください</div>'}
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--gold-dim);letter-spacing:.1em;margin-bottom:8px;">自分で調整した強さ（編集可）</div>
+      <div class="adjust-grid">${adjustRows}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">※実際に使った数値に修正してから保存してください</div>
+    </div>
+    <div class="custom-field">
+      <label>自分メモ（放置時間・気づきなど）</label>
+      <input type="text" id="save-memo" placeholder="例：放置25分・捻転残り注意" maxlength="60">
+    </div>
+    <button class="btn-save-custom" onclick="doSaveRecipe()">保存する</button>
+    <button class="btn-modal-close" onclick="closeModal()">キャンセル</button>
+  `;
+  modal.classList.add('open');
+}
+
+// 保存済み一覧モーダル
+function openSavedModal() {
+  const modal = document.getElementById('modal-custom');
+  const body = document.getElementById('modal-body');
+  const saved = getSaved();
+  const zoneLabels = { root:'根元', mid:'中間', tip:'毛先', face:'顔周り' };
+
+  const listHtml = saved.length === 0
+    ? '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px 0;">保存済みレシピがありません</div>'
+    : saved.map((r, i) => `
+      <div class="saved-recipe-card" onclick="applyRecipe(${i})">
+        <div class="src-icon">${r.feedback === 'good' ? '✅' : r.feedback === 'ok' ? '👍' : r.feedback === 'weak' ? '⚠️' : r.feedback === 'bivi' ? '❌' : '💊'}</div>
+        <div class="src-body">
+          <div class="src-name">${r.name || '無題'}</div>
+          <div class="src-detail">${r.memo || Object.entries(r.zones||{}).map(([k,v])=>`${zoneLabels[k]}:強さ${v.scale}`).join(' / ')}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${r.date || ''}${r.feedback ? ' · ' + {good:'良好',ok:'まあまあ',weak:'弱すぎ',bivi:'ビビり'}[r.feedback] : ''}</div>
+        </div>
+        <button class="src-del" onclick="deleteRecipe(event,${i})">✕</button>
+      </div>
+    `).join('');
+
+  body.innerHTML = `
+    <div class="modal-title" style="margin-bottom:4px;">保存済みレシピ</div>
+    <div class="modal-sub">タップで詳細表示・参照できます</div>
+    <div class="saved-recipe-list">${listHtml}</div>
+    <button class="btn-modal-close" onclick="closeModal()">閉じる</button>
+  `;
+  modal.classList.add('open');
+}
+
+function doSaveRecipe() {
+  const name = document.getElementById('save-name').value.trim() || '無題';
+  const memo = document.getElementById('save-memo').value.trim();
+  const saved = getSaved();
+  const zones = ['root','mid','tip','face'];
+  const zoneData = {};
+  if (lastRecipes) zones.forEach(z => {
+    const adjEl = document.getElementById('adj_' + z);
+    const adjScale = adjEl ? (parseInt(adjEl.value) || lastRecipes[z].scale) : lastRecipes[z].scale;
+    zoneData[z] = { ...lastRecipes[z], scale: adjScale, ...scaleToRecipe(adjScale) };
+  });
+
+  saved.unshift({
+    name, memo,
+    zones: zoneData,
+    state: { ...state },
+    feedback: null,
+    date: new Date().toLocaleDateString('ja-JP')
+  });
+  setSaved(saved);
+  window._lastSavedIdx = 0;
+  closeModal();
+  showToast('レシピを保存しました 💾');
+}
+
+function recordFeedback(result) {
+  const labels = { good:'✅ 良好', ok:'👍 まあまあ', weak:'⚠️ 弱すぎた', bivi:'❌ ビビり' };
+  const saved = getSaved();
+  const idx = window._lastSavedIdx !== undefined ? window._lastSavedIdx : -1;
+  if (idx >= 0 && saved[idx]) {
+    saved[idx].feedback = result;
+    setSaved(saved);
+  }
+  document.getElementById('feedback-btns').style.display = 'none';
+  document.getElementById('feedback-section').style.display = 'block';
+  document.getElementById('fb-result-label').innerHTML =
+    '施術結果を記録しました：<strong>' + labels[result] + '</strong>';
+  showToast('施術結果を記録しました');
+}
+
+
+function recordFeedback(result) {
+  const labels = { good:'✅ 良好', ok:'👍 まあまあ', weak:'⚠️ 弱すぎた', bivi:'❌ ビビり' };
+  const saved = getSaved();
+  const idx = (window._lastSavedIdx !== undefined) ? window._lastSavedIdx : -1;
+  if (idx >= 0 && saved[idx]) {
+    saved[idx].feedback = result;
+    setSaved(saved);
+  }
+  document.getElementById('feedback-btns').style.display = 'none';
+  document.getElementById('feedback-section').style.display = 'block';
+  document.getElementById('fb-result-label').innerHTML =
+    '施術結果を記録しました：<strong>' + labels[result] + '</strong>';
+  showToast('施術結果を記録しました');
+}
+
+function applyRecipe(idx) {
+  const saved = getSaved();
+  const r = saved[idx];
+  if (!r) return;
+  closeModal();
+  // フィードバックUIリセット
+  const fbBtns = document.getElementById('feedback-btns');
+  const fbSec = document.getElementById('feedback-section');
+  if (fbBtns) fbBtns.style.display = 'block';
+  if (fbSec) fbSec.style.display = 'none';
+  // 保存済みレシピにフィードバックを記録できるよう準備
+  window._lastSavedIdx = idx;
+  const zoneLabels = { root:'根元', mid:'中間', tip:'毛先', face:'顔周り' };
+  const zones = ['root','mid','tip','face'];
+  const detail = zones.map(z => r.zones[z]
+    ? `<div class="recipe-zone-row">
+        <div class="recipe-zone-label">${{root:'🔴',mid:'🟡',tip:'🔵',face:'⚪'}[z]} ${zoneLabels[z]}</div>
+        <div class="recipe-zone-body">
+          <div class="recipe-product">${r.zones[z].product}</div>
+          <div class="recipe-num-badge">${r.zones[z].blend}</div>
+        </div>
+       </div>`
+    : '').join('<hr class="recipe-zone-divider">');
+
+  document.getElementById('resultContent').innerHTML = `
+    <div class="result-hero">
+      <div class="result-badge">SAVED RECIPE</div>
+      <div class="result-main-product">${r.name}</div>
+      <div class="result-main-desc">${r.date}に保存 ${r.memo ? '· '+r.memo : ''}</div>
+    </div>
+    <div class="recipe-card">
+      <div class="recipe-card-head"><span class="recipe-card-icon">💊</span><span class="recipe-card-title">保存済み 部位別レシピ</span></div>
+      <div class="recipe-rows">${detail}</div>
+    </div>
+    <div class="info-box">このレシピはあなたが保存したカスタムメモです。実際の施術は必ず毛髪診断の結果に基づき、自己責任で行ってください。</div>
+  `;
+  showSection('stepResult');
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('progressLabel').textContent = '保存済みレシピ参照';
+}
+
+function deleteRecipe(e, idx) {
+  e.stopPropagation();
+  if (!confirm('このレシピを削除しますか？')) return;
+  const saved = getSaved();
+  saved.splice(idx, 1);
+  setSaved(saved);
+  openSavedModal();
+}
+
+function closeModal() {
+  document.getElementById('modal-custom').classList.remove('open');
+}
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modal-custom')) closeModal();
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    background:#1e1a14;border:1px solid var(--gold-dim);border-radius:8px;
+    padding:10px 18px;font-size:13px;color:var(--gold);z-index:3000;
+    box-shadow:0 4px 16px rgba(0,0,0,.4);animation:fadeUp .3s ease;white-space:nowrap;`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// 初期化
+goStep(1);
+document.getElementById('progressFill').style.width = '0%';
+document.getElementById('progressLabel').textContent = '診断スタート';
+bootAuth();
+
+// ─────────────────────────────────
+// PWA セットアップ（単一HTMLファイル内完結）
+// ─────────────────────────────────
+(function() {
+  // ── アイコン（SVG → Canvas → PNG → Blob）──
+  function makeIconBlob(size) {
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // 背景
+    const bg = ctx.createLinearGradient(0, 0, size, size);
+    bg.addColorStop(0, '#1a1510');
+    bg.addColorStop(1, '#0d0d0d');
+    ctx.fillStyle = bg;
+    roundRect(ctx, 0, 0, size, size, size * 0.2);
+    ctx.fill();
+
+    // ゴールドの雫マーク（Oil Straight ロゴ風）
+    const cx = size / 2, cy = size * 0.46, r = size * 0.22;
+    const goldGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+    goldGrad.addColorStop(0, '#e8c99a');
+    goldGrad.addColorStop(1, '#a07840');
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r * 1.5);
+    ctx.bezierCurveTo(cx + r * 1.1, cy - r * 0.3, cx + r, cy + r * 0.6, cx, cy + r * 1.1);
+    ctx.bezierCurveTo(cx - r, cy + r * 0.6, cx - r * 1.1, cy - r * 0.3, cx, cy - r * 1.5);
+    ctx.closePath();
+    ctx.fillStyle = goldGrad;
+    ctx.fill();
+
+    // テキスト「ナビ」
+    const fs = size * 0.16;
+    ctx.font = `900 ${fs}px sans-serif`;
+    ctx.fillStyle = '#c9a96e';
+    ctx.textAlign = 'center';
+    ctx.fillText('ナビ', cx, cy + r * 1.65 + fs * 0.35);
+
+    return new Promise(res => canvas.toBlob(res, 'image/png'));
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // ── Service Worker（キャッシュ戦略） ──
+  const swCode = `
+const CACHE = 'oilst-navi-v3';
+const FONTS = [
+  'https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=DM+Serif+Display:ital@0;1&display=swap'
+];
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(FONTS).catch(()=>{}))
+  );
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+  ));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request).catch(() =>
+      new Response('', {status: 503})
+    ))
+  );
+});
+`;
+
+  Promise.all([makeIconBlob(192), makeIconBlob(512)]).then(([icon192, icon512]) => {
+    const icon192URL = URL.createObjectURL(icon192);
+    const icon512URL = URL.createObjectURL(icon512);
+
+    // apple-touch-icon
+    document.getElementById('pwa-icon').href = icon192URL;
+
+    // manifest
+    const manifest = {
+      name: '薬剤選定ナビ',
+      short_name: '薬剤選定ナビ',
+      description: '薬剤選定・部位別レシピ診断',
+      start_url: '.',
+      display: 'standalone',
+      background_color: '#0d0d0d',
+      theme_color: '#0d0d0d',
+      lang: 'ja',
+      icons: [
+        { src: icon192URL, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+        { src: icon512URL, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+      ]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+
+    // Service Worker 登録
+    if ('serviceWorker' in navigator) {
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      const swURL = URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swURL, { scope: './' })
+        .then(() => console.log('[SW] 登録完了'))
+        .catch(e => console.warn('[SW] 登録失敗:', e));
+    }
+  });
+
+  // ── インストールバナー ──
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallBanner();
+  });
+
+  function showInstallBanner() {
+    if (document.getElementById('install-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'install-banner';
+    banner.style.cssText = `
+      position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+      background:linear-gradient(135deg,#1e1a14,#161410);
+      border:1px solid #c9a96e; border-radius:12px;
+      padding:12px 18px; display:flex; align-items:center; gap:12px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.5); z-index:9999;
+      max-width:320px; width:calc(100% - 32px); animation:fadeUp .3s ease;
+    `;
+    banner.innerHTML = `
+      <div style="font-size:28px;line-height:1;">💊</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:#e8c99a;">ホーム画面に追加</div>
+        <div style="font-size:11px;color:#7a6040;margin-top:2px;">アプリとして使えます</div>
+      </div>
+      <button onclick="installApp()" style="
+        background:linear-gradient(135deg,#a07840,#c9a96e);
+        border:none;border-radius:8px;padding:8px 14px;
+        color:#0d0d0d;font-weight:900;font-size:13px;cursor:pointer;
+        font-family:inherit;white-space:nowrap;
+      ">追加</button>
+      <button onclick="document.getElementById('install-banner').remove()" style="
+        background:none;border:none;color:#4a4744;font-size:18px;
+        cursor:pointer;padding:4px;line-height:1;
+      ">✕</button>
+    `;
+    document.body.appendChild(banner);
+  }
+
+  window.installApp = function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      const b = document.getElementById('install-banner');
+      if (b) b.remove();
+    });
+  };
+
+  // iOS向け手動インストール案内（Safari）
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone;
+  if (isIOS && !isStandalone) {
+    setTimeout(() => {
+      if (document.getElementById('install-banner')) return;
+      const tip = document.createElement('div');
+      tip.id = 'install-banner';
+      tip.style.cssText = `
+        position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+        background:linear-gradient(135deg,#1e1a14,#161410);
+        border:1px solid #c9a96e; border-radius:12px;
+        padding:14px 18px; box-shadow:0 8px 32px rgba(0,0,0,0.5);
+        z-index:9999; max-width:320px; width:calc(100% - 32px);
+        animation:fadeUp .3s ease;
+      `;
+      tip.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:13px;font-weight:700;color:#e8c99a;">📲 ホーム画面に追加する方法</div>
+          <button onclick="this.closest('#install-banner').remove()" style="background:none;border:none;color:#4a4744;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+        </div>
+        <div style="font-size:12px;color:#8a8278;line-height:1.7;">
+          Safari下部の <strong style="color:#c9a96e;">共有ボタン（□↑）</strong> をタップ<br>
+          →「<strong style="color:#c9a96e;">ホーム画面に追加</strong>」を選択
+        </div>
+      `;
+      document.body.appendChild(tip);
+    }, 2000);
+  }
+})();
+</script>
+</body>
+</html>
